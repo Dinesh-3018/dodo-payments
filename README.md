@@ -4,7 +4,7 @@ A tiny embeddable checkout. A site adds one script, calls one function, and a ch
 
 The payment network is simulated inside the checkout: nothing is charged and no card data leaves the iframe. The copy is written as the real product would say it (the lock line, the bank wording), so the fake exercises the same states a real gateway would.
 
-- **Live demo:** https://dodo-checkout-demo-two.vercel.app (minimal embed: https://dodo-checkout-demo-two.vercel.app/minimal.html)
+- **Live demo:** https://dodo-checkout-demo-two.vercel.app (minimal embed: https://dodo-checkout-demo-two.vercel.app/minimal.html; requirement and edge-case coverage: https://dodo-checkout-demo-two.vercel.app/coverage.html)
 - **Hosted checkout and SDK:** https://dodo-checkout-flame.vercel.app (script at `/sdk/dodo-checkout.js`)
 
 ## Embed it
