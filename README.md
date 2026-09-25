@@ -1,38 +1,52 @@
 # Dodo Checkout
 
-A tiny embeddable checkout. A site adds one script, calls one function, and a checkout opens on top of the page. The customer never leaves the page, and the page never sees the card.
+A small checkout any website can embed. Add one script, call one function, and the checkout opens on top of the page. The customer stays on the page. The page never sees the card.
 
-The payment network is simulated inside the checkout: nothing is charged and no card data leaves the iframe. The copy is written as the real product would say it (the lock line, the bank wording), so the fake exercises the same states a real gateway would.
+- Live demo: https://dodo-checkout-demo-two.vercel.app
+- Minimal embed (one script tag, one call): https://dodo-checkout-demo-two.vercel.app/minimal.html
+- No-JS embed (attributes only): https://dodo-checkout-demo-two.vercel.app/declarative.html
+- Every requirement and edge case, and how each is tested: https://dodo-checkout-demo-two.vercel.app/coverage.html
+- The hosted checkout and the script: https://dodo-checkout-flame.vercel.app/sdk/dodo-checkout.js
 
-- **Live demo:** https://dodo-checkout-demo-two.vercel.app (minimal embed: https://dodo-checkout-demo-two.vercel.app/minimal.html; no-JS embed: https://dodo-checkout-demo-two.vercel.app/declarative.html; requirement and edge-case coverage: https://dodo-checkout-demo-two.vercel.app/coverage.html)
-- **Hosted checkout and SDK:** https://dodo-checkout-flame.vercel.app (script at `/sdk/dodo-checkout.js`)
+The payment is faked inside the checkout. Nothing is charged. The copy is written the way the real thing would say it, so the fake goes through the same states a real gateway would.
+
+## Where the ideas came from
+
+I buy from Cookd (shop.cookdtv.com) fairly often, and their checkout always had a small "Secured by Shopflo" line at the bottom. That name stuck with me, and some time before this assignment turned up I had already gone and read up on what Shopflo does. So when the brief said "build a checkout", I went back to Cookd as a buyer and paid attention to what actually made me comfortable pressing pay, and what got in the way.
+
+What I kept from that:
+
+- The drawer. It slides over the store instead of taking me somewhere else, so I never lose the thing I am buying.
+- The milestone bar. Free shipping at one amount, a free gift at the next, badges that tick, and confetti when you cross one. It makes adding one more feel like winning something.
+- One big button in the brand colour, and the "secured by" line right under the card fields.
+- The bottom of the drawer never moves. The pay button is always where your thumb expects it.
+
+What I dropped: the OTP login step (a wait and a failure mode I did not need for a single product), and the amount of stuff competing for attention. I wanted less on screen, said more clearly.
+
+For the visual system I used the shadcn "Luma" preset as the reference: Geist, a light grey canvas, white cards with big radii, filled pill inputs, one accent. For the receipt at the end I looked at how Apple Pay's sheet does it. Everything else in here is my own call, and I have written down why for each one.
 
 ## Embed it
 
-Two tags on any page. Nothing to install, no framework, no build step on the host side.
-
 ```html
-<!-- 1. Load the script from the checkout's origin. It defines one global, DodoCheckout. -->
 <script src="https://dodo-checkout-flame.vercel.app/sdk/dodo-checkout.js"></script>
 
 <button id="buy">Buy now</button>
 
-<!-- 2. Open the checkout when the customer asks for it. -->
 <script>
   document.getElementById("buy").addEventListener("click", () => {
     DodoCheckout.open({
-      productId: "prod_123",                                   // what is being sold
-      onSuccess: ({ sessionId }) => { /* fulfil the order */ }, // the payment went through
-      onClose:   ({ reason })    => { /* "user" | "complete" | "host" | "error" */ },
-      onError:   ({ code, message }) => { /* log it; the checkout usually stays open */ },
+      productId: "prod_123",
+      onSuccess: ({ sessionId }) => { /* fulfil the order */ },
+      onClose: ({ reason }) => { /* "user" | "complete" | "host" | "error" */ },
+      onError: ({ code, message }) => { /* log it */ },
     });
   });
 </script>
 ```
 
-That is the whole contract: one function, three callbacks. `open()` returns a handle with `sessionId` and `close()`. Every `open()` ends in exactly one `onClose`; `onSuccess` fires at most once; `onError` can fire before either and does not close the checkout unless `onClose({ reason: "error" })` follows.
+That is the whole API. `open()` returns `{ sessionId, close() }`. Every open ends in exactly one `onClose`. `onSuccess` fires at most once. `onError` can fire before either and does not close the checkout unless an `onClose({ reason: "error" })` follows.
 
-Or with no JavaScript at all. The script tag carries the defaults, and any element with `data-dodo-product` opens the checkout; the element receives `dodo:success`, `dodo:close` and `dodo:error` events with the same payloads.
+If you would rather not write JavaScript, the script tag can carry the defaults and any element with `data-dodo-product` opens the checkout. It gets `dodo:success`, `dodo:close` and `dodo:error` events with the same payloads.
 
 ```html
 <script src="https://dodo-checkout-flame.vercel.app/sdk/dodo-checkout.js"
@@ -40,208 +54,82 @@ Or with no JavaScript at all. The script tag carries the defaults, and any eleme
 <button data-dodo-product="prod_123" data-dodo-quantity="2">Buy 2 notebooks</button>
 ```
 
-Script-tag attributes: `data-layout`, `data-accent`, `data-radius`, `data-font`, `data-merchant-name`, `data-merchant-logo`, `data-merchant-site`. Trigger attributes: `data-dodo-product` (required), `data-dodo-quantity`, `data-dodo-layout`, `data-dodo-email`. Explicit `open()` options always win over the tag's defaults, and both go through the same validation.
+What a store can set: `layout` (drawer or modal), `theme.accent`, `theme.radius`, `theme.font`, `merchant.name`, `merchant.logo`, `merchant.site`, `quantity`, `customerEmail`. Leave the brand out and the checkout reads the store's colour, name and logo from the page it opened on. Copy, fields, the pay button label and the lock line are not configurable on purpose. Those are the things that make it feel safe, and a store should not be able to remove them.
 
-`apps/demo/minimal.html` is the JavaScript version and nothing else: a plain HTML page with a Buy button and a log. `apps/demo/declarative.html` is the attribute version. The full demo store (`apps/demo/index.html`) is the same integration with a playground around it. The SDK source is one plain TypeScript file, `packages/sdk/src/index.ts`, with no dependencies; it builds to `dodo-checkout.js`, which the checkout app serves at `/sdk/dodo-checkout.js`.
-
-## The position
-
-**A checkout should never lie, and it should ask for as little as possible.**
-
-Every spinner says what it is doing. Every failure says what happened, that no money was taken, and what to do next. The host page always learns the truth: every `open()` ends in exactly one `onClose`, and a failed payment reaches `onError` even when the customer retries and succeeds afterwards.
-
-And the form is email plus card. No name, no account, no address, no upsell. The amount is on the button. Nothing moves under your thumb: error text has reserved height, the card brand icon lives in a fixed slot, and the panel does not resize while you type.
-
-## How it looks, and why
-
-One canvas, white cards, one accent. The panel floats off the edge of the page like a sheet rather than a sidebar glued to it. Inside, an order card with the item and a large total, and a payment card with filled, borderless inputs and a pill button. The host's brand colour appears in exactly two places, the pay button and the focus ring; everything else is neutral, so a lime store and a navy store both look designed rather than tinted. Type is Geist, bundled with the checkout and served from its own origin (no third-party font requests, and the CSP stays strict), with tabular numerals on every amount.
-
-Friction taken out on purpose: a pre-filled email shows as a line with a Change link instead of a field, the phone keyboard is not opened until the buyer taps, Backspace walks back across fields the way Tab walks forward, the failure screen restates the amount so nobody has to reopen the summary, and nothing on screen changes size when an error appears.
-
-**Perks, and when the confetti is allowed.** The order card has a quantity stepper and a perks track (thresholds come from the store's config, here the fake catalogue): free shipping from $15, a free sleeve from $40, free engraving from $70. Badges tick as the total crosses each line and a line under the track says how far the next one is. Confetti is a reward, not a greeting: it rains across the panel when a perk is crossed, once on open if a perk is already earned, and bursts when the payment succeeds. It never fires just because the panel opened.
-
-**Why email and not something else.** The brief defines the checkout as product, email, card, pay. Beyond that, a card payment needs a receipt destination and email is the only one that works everywhere with one tap of autofill. Phone plus OTP adds a screen, a wait and a failure mode, and only pays off with a shopper network behind it; no contact at all leaves the buyer with no proof that money moved. So the field stays, and everything around it is there to make it cost almost nothing.
-
-## What is here
+## The repo
 
 ```
-packages/sdk        the one script a site drops in (one plain TypeScript file; 12 KB built, 4.8 KB gzipped)
-apps/checkout       the hosted checkout (React + Vite) and the brand reader function, served from their own origin
-apps/demo           a fake store, "Kestrel Supply Co.": index.html (store + playground), minimal.html (the JS embed),
-                    declarative.html (the no-JS embed), coverage.html (requirements and edge cases)
-tests/e2e.mjs       the end-to-end suite, 75 checks
+packages/sdk        the script a site drops in. One plain TypeScript file, no dependencies. 12 KB built.
+apps/checkout       the hosted checkout (React + Vite) plus one small function that reads a store's brand
+apps/demo           the fake store "Kestrel Supply Co." with a playground, a callback log, and the two small embed pages
+tests/e2e.mjs       75 browser checks, run with pnpm test:e2e
 ```
 
-### Run it
+Run it:
 
 ```
 pnpm install
 pnpm dev
 ```
 
-- Demo store: http://localhost:5173 (also `/minimal.html`, `/declarative.html`, `/coverage.html`)
-- Checkout: http://localhost:5174 (also serves the SDK at `/sdk/dodo-checkout.js` and the brand reader at `/api/brand`)
+Store on http://localhost:5173, checkout on http://localhost:5174. Two ports on purpose, so the iframe is cross-origin locally, the same as in production.
 
-The two apps run on different ports on purpose. That makes the iframe cross-origin locally, exactly as it is in production, so the isolation is real and not just claimed.
+Test it, with `pnpm dev` still running:
 
-`pnpm build` builds all three. `pnpm typecheck` checks all three.
+```
+pnpm test:e2e
+```
 
-### How the edge cases are tested
+It drives the installed Chrome headlessly and goes through every state below, plus the security cases: a page posting a crafted message straight to the iframe, a host stylesheet trying to hide the overlay, hostile URLs sent to the brand reader, going offline before and after pressing pay, a real double click, reduced motion.
 
-With `pnpm dev` running, `pnpm test:e2e` drives the installed Google Chrome headlessly against the two dev servers (Playwright is a dev dependency; no browser download needed). It exercises every condition in the states table, including a real double-click, going offline before and after Pay, the bank challenge, three declines, the stock cap, a page that posts a crafted `init` straight to the iframe, a host stylesheet that tries to hide the overlay, reduced motion, and the brand reader with private, IPv6-mapped, DNS-rebound and redirecting targets plus a megabyte of pathological CSS. The two things a browser cannot check are the CSP header and the leave-page prompt: `curl -I https://dodo-checkout-flame.vercel.app/` shows the header, and reloading the page while a payment is in flight shows the prompt.
+Test cards:
 
-### Test cards
-
-| Card | Result |
+| Card | What happens |
 |---|---|
 | 4242 4242 4242 4242 | succeeds |
-| 4000 0000 0000 0002 | declined by the bank |
-| 4000 0000 0000 0341 | fails once (slowly), succeeds on retry |
-| 4000 0000 0000 3220 | the bank asks for an extra check (a stand-in for 3-D Secure); approve or decline it |
+| 4000 0000 0000 0002 | declined |
+| 4000 0000 0000 0341 | fails once, slowly, then succeeds on retry |
+| 4000 0000 0000 3220 | the bank asks for an extra check, approve or decline it |
 
-Any other Luhn-valid number succeeds. Expiry must be in the future. To see the offline states, set DevTools Network to Offline either before pressing Pay (nothing is sent, the button is held) or right after (the charge is out, the checkout waits for the connection and never guesses). The notebook has 8 in stock; the stepper stops there and the pay step re-checks it.
+Any other Luhn-valid number succeeds. The notebook has 8 in stock.
 
-## How the pieces talk
+## How it works
 
-```
-host page                          SDK (in host page)                     checkout (iframe, other origin)
-──────────                         ──────────────────                     ────────────────────────────────
-DodoCheckout.open(opts) ─────────▶ validate opts, make sessionId
-                                   draw overlay in a closed shadow root
-                                   iframe.src = <checkout origin>/  ────▶ boot
-                                                                   ◀──── { type: "ready" }               to "*", carries nothing
-                                   { type: "init", sessionId,     ────▶ re-validate everything, remember
-                                     productId, quantity, layout,        hostOrigin + sessionId
-                                     theme, merchant, customerEmail }
-                                                                   ◀──── { type: "init_ok" }             now "loaded" means "usable"
-                                                                         fetch product + brand in parallel, render
-                                                                   ◀──── { type: "resize" }              modal layout only
-          customer types card, presses Pay                               submit the charge, await its outcome
-                                                                   ◀──── { type: "dismissable", false }  SDK refuses backdrop / Esc
-                                   Esc or backdrop anyway ──────────────▶ { type: "close_request" }
-                                                                   ◀──── { type: "nudge" }               panel shakes, nothing closes
-                                                                   ◀──── { type: "error", code }         decline or transient failure
-onError({ code, message }) ◀────── (checkout stays open; customer retries)
-                                                                   ◀──── { type: "success" }
-onSuccess({ sessionId }) ◀────────
-                                                                   ◀──── { type: "close", reason }
-onClose({ reason }) ◀───────────── tear down overlay, restore focus and scroll
-```
+The script draws an overlay on the host page and puts the checkout inside an iframe on a different origin. The two talk over `postMessage`. Every message on both sides is checked for origin, source window, protocol tag and session id, and anything that fails is dropped without a reply. The script decides where the checkout lives, from its own `src`, so a page cannot point it at a look-alike.
 
-Every message on both sides is checked for **origin**, **source window**, **protocol tag**, and (after init) **session id**. Anything that fails a check is dropped without a reply. The SDK sends with an explicit `targetOrigin`, never `"*"`. The checkout replies only to the origin that sent `init`.
+The host page learns four things: that a payment succeeded (session id), that something went wrong (code and message), why the checkout closed (reason), and the handle from `open()`. It never gets the email, the card, the last four or the amount.
 
-Where the checkout lives is decided by the script, not the host: the SDK derives the checkout origin from its own `src`. A host cannot point it at a look-alike.
+The checkout does not trust the host either. A page can skip the script and post to the iframe directly, so the checkout runs the same validation on everything it receives, only ever writes a hex colour into CSS, and ships a Content-Security-Policy. The overlay sits in a closed shadow root, and its host element pins its own display and position inline so a global `display: none !important` cannot blank it.
 
-### What the host can and cannot know
+## The calls the brief left open
 
-The host gets four facts and nothing else:
+**How much a store can change.** An allow-list, above. Colour, corners, font, name, logo, layout. Not copy, not fields, not the trust cues.
 
-| Callback | Payload | Meaning |
-|---|---|---|
-| `onSuccess` | `{ sessionId }` | a payment succeeded. In a real integration your server would verify the session before fulfilling; here the id is minted in the browser |
-| `onError` | `{ code, message }` | something went wrong. Not terminal unless followed by `onClose({ reason: "error" })` |
-| `onClose` | `{ reason }` | `"user"`, `"complete"`, `"host"` or `"error"`. Exactly one per `open()` |
-| `open()` return | `{ sessionId, close() }` | the handle |
+**A payment that fails halfway.** The order stays on screen and a failure card appears under it: what happened, the card and amount, a "Nothing charged" line, then "Try again with this card" and "Use a different card". After three declines only the second is offered. If the connection drops after the charge is sent, the checkout waits for it and says so. It never guesses. After twelve seconds it tells the buyer not to pay again and that the result will show up when they are back online.
 
-The host never receives the email, the card, the last four, or the amount. The card is typed into a different origin; the host's DOM, memory and network never contain it. The overlay lives in a closed shadow root so host CSS cannot restyle it and host scripts cannot casually reach in.
+**Buy pressed twice.** A second `open()` returns the same session. A real double click is the sneaky one: the second click lands on the backdrop where the button was, and a naive overlay closes what it just opened. So the backdrop only dismisses on a deliberate press and release, never in the first half second. Inside, pay ignores repeats, and success reaches the host once.
 
-The checkout does not trust its parent either. A page can skip the SDK and post to the iframe directly, so the checkout re-runs the same validation on everything in `init` (the validators are exported from the SDK's single file and imported by the checkout, one source of truth), only ever writes a hex colour into a CSS variable, and ships with a Content-Security-Policy (`vercel.json`, mirrored in the preview server) that blocks inline scripts and unexpected origins. The overlay's host element pins its own display, position and visibility inline, so a global `display: none !important` in the host's stylesheet cannot blank it.
+**What the host may know.** The four things above, nothing more.
 
-Error codes. Terminal: `load_failed`, `product_not_found`. Recoverable, the customer is still in the checkout: `payment_declined`, `payment_failed`, `authentication_failed`, `insufficient_stock`, `offline`. Informational: `payment_unconfirmed` (the charge was sent, the connection dropped, and the customer closed before the answer; resolve it by session id), and `invalid_options` (only from a misconfigured `data-dodo-product` element; `open()` throws instead).
+## States
 
-### What the host can change
-
-An allow-list, validated in the SDK (so developers get a warning) and again in the checkout (so the SDK is a convenience, not the boundary):
-
-```ts
-DodoCheckout.open({
-  productId: "prod_123",
-  quantity: 2,                             // 1 to 99, default 1; the customer can change it inside
-  layout: "drawer" | "modal",              // drawer slides from the right and is a full-height sheet on phones; modal is centred and a bottom sheet on phones
-  theme: { accent: "#0f766e", radius: "none" | "small" | "medium" | "large", font: "Inter, sans-serif" },
-  merchant: { site: "https://store.example", name: "Store", logo: "https://store.example/logo.png" },
-  customerEmail: "sam@example.com",
-});
-```
-
-If you pass nothing, the checkout reads the store's accent colour, name and logo from the page it was opened on (`/api/brand` fetches the public homepage and looks at `theme-color`, brand CSS variables, button colours, `og:site_name` and the touch icon). `merchant.site` points it at another URL. Explicit values always win. The pay button text picks white or near-black automatically so a lime accent stays legible.
-
-That fetcher runs on behalf of anyone, so it is written for hostile input: every redirect hop is re-validated, hostnames are resolved and refused if they point at a private address, IPv6 literals and private IPv4 ranges are refused, bodies are size-capped, requests are time-capped, the CSS scanners are linear, the cache is bounded, each caller gets 30 lookups a minute, and the function has a 10 s ceiling. The limits are per instance, which is what a serverless function can promise on its own.
-
-Not on the list, on purpose: custom CSS, copy, field order, the pay button label, the lock line. Those are the trust cues, and a host must not be able to remove them.
-
-## The open calls
-
-**Buy pressed twice.** Three different things can go wrong, and each has its own guard. A second `open()` while a checkout is open returns the existing handle and refocuses it: no second iframe, no second session, no duplicate callbacks. A real double-click is subtler: the first click mounts the overlay, so the second click lands on the backdrop where the button was, about 100 ms later, and a naive overlay treats that as "dismiss" and closes what it just opened. So the backdrop only dismisses on a deliberate gesture: pointer down and up on the backdrop itself, and never in the first half second. Inside the checkout, Pay ignores further presses while processing (the button stays focusable, with `aria-disabled` and `aria-busy`, so focus does not jump), the state machine ignores a second submit, and the SDK delivers `onSuccess` at most once per session. This is how the established players do it too: Stripe and Shopify disable the pay button while a confirmation is in flight and rely on an idempotency key server-side; Razorpay's modal ignores a second `open()`; Apple Pay's sheet is system-modal, so a second tap has nowhere to go. What is left for a real backend is the idempotency key itself: `sessionId` is the natural one.
-
-**Close then reopen straight away.** `handle.close(); DodoCheckout.open(...)` in the same tick is fine: scroll lock and focus are restored synchronously, only the exit animation and `onClose` are deferred.
-
-**Payment fails halfway.** The order card stays where it was and a failure card appears under it: what happened in plain words, the card and amount, a Status row reading "Nothing charged", then "Try again with this card" and "Use a different card" (the second is kept off the offline variant, where the card is not the problem). Every field value survives. After three declines the retry disappears and only a different card is offered. The host hears about each failure through `onError` while the checkout stays open. If the connection drops after the charge was sent, nothing is guessed: the checkout waits, and after 12 seconds says so and tells the customer not to pay again.
-
-**Closing mid-payment.** The customer cannot: the close button disables, and Escape (inside or outside the iframe) and backdrop clicks nudge the panel and announce "Hang on, we're confirming your payment" to screen readers. The host can: `handle.close()` is always honoured, because the host owns the page. That is the one case where the outcome of an in-flight payment is unknown, and the reason `"host"` says so.
-
-**A page the checkout cannot talk to.** A `file://` page or a sandboxed preview frame has an opaque origin, so the checkout could never reply safely. It says so once, the SDK closes with `onError(load_failed)` and `onClose(error)`, and nobody is left staring at a locked overlay. The handshake is acknowledged (`ready`, `init`, `init_ok`), so "loaded" means "usable", not "rendered".
-
-**Opening the checkout URL directly.** It renders a plain explanation instead of a broken form. There is no product, no session and no host to report to.
-
-**Bad calls.** Missing `productId` or a callback that is not a function throws a `TypeError` synchronously, so the mistake shows up in development, not as a silent no-op in production. Bad brand values (an accent that is not hex, an http logo) are dropped with a `console.warn` and the checkout still opens.
-
-## Weird states
-
-| State | What the customer sees | What the host hears |
-|---|---|---|
-| SDK loading the iframe | overlay with "Opening secure checkout" | nothing yet |
-| Iframe never loads, or never acknowledges init (10 s) | overlay closes | `onError(load_failed)` then `onClose(error)` |
-| Host page has an opaque origin | overlay closes | `onError(load_failed)` then `onClose(error)` |
-| Checkout hits an unexpected error while setting up | "Something went wrong opening the checkout", Close | `onError(load_failed)` then `onClose(error)` |
-| Product + brand loading | skeleton with "Matching the store's look" | nothing |
-| Unknown product | "We couldn't find that product", Close | `onError(product_not_found)` then `onClose(error)` |
-| Invalid field | specific message under the field, on blur or on submit, focus moves to the first problem | nothing |
-| Processing | button spinner + "Confirming payment", then "Still confirming, hang on" after 4 s (the flaky test card's first attempt takes 5 s, so you can see it), dismissal blocked | nothing |
-| Declined | failure card with the card and amount, Try again / Use a different card | `onError(payment_declined)` |
-| Declined three times | "This card keeps getting declined", only Use a different card | `onError(payment_declined)` |
-| Transient failure | failure card, Try again | `onError(payment_failed)` |
-| Bank asks for an extra check | a stand-in for the bank's page with Approve and Decline; closing it counts as declining | `onError(authentication_failed)` on decline |
-| Offline before Pay | notice above the button, Pay held, nothing sent | nothing |
-| Connection drops after the charge was sent | "Connection lost, waiting for it"; after 12 s an "unconfirmed" card that says don't pay again; the result appears the moment the connection returns | `onError(payment_unconfirmed)` only if the customer closes before the answer |
-| Leaving the page mid-payment | the browser's own "leave this page?" prompt, armed only while a payment is in flight | nothing (the page is gone) |
-| Fewer units left than asked for | "Only 8 left" on the stepper; if it slips through, a failure card with "Pay for 8" | `onError(insufficient_stock)` |
-| Left open for 20 minutes | "This checkout timed out", card details cleared, Start again | nothing |
-| Success | a receipt card (paid, to, card, receipt email), one confetti burst, Done | `onSuccess` then `onClose(complete)` |
-| Escape / backdrop / X | closes when idle; nudges and announces when processing; if the checkout never answers a close request, the SDK closes anyway after 1.5 s | `onClose(user)` |
-| Double-click on Buy | one checkout opens and stays open; the second click is absorbed | one `open()`, one session |
-| Drag from the panel that ends on the backdrop | nothing; only a press and release on the backdrop dismisses | nothing |
-| Checkout reports success twice, or an error after success | the host hears success once and nothing after it | one `onSuccess` |
-| Host page reloads or navigates mid-payment | the iframe dies with the page; a real backend would resolve the outcome by session id and webhook | nothing (page is gone) |
-| Host's CSP blocks the iframe or the script | nothing renders; after 10 s the SDK gives up | `onError(load_failed)` then `onClose(error)` |
-| Host `close()` | closes immediately | `onClose(host)` |
-| Reduced motion | no slide, no confetti, instant states | same |
+Loading, unknown product, a page the checkout cannot talk to, invalid fields, offline before pay, processing, slow processing, declined, declined three times, transient failure, bank check, connection lost after the charge, unconfirmed, leaving the page mid-payment, fewer units left than asked for, left open for twenty minutes, success, close and reopen, host close, reduced motion. Each one has its own copy and its own test. The full table, with what the customer sees and what the host hears, is on the coverage page linked at the top.
 
 ## Two decisions I went back and forth on
 
-**1. A failure card or an inline banner.** The banner keeps the form in view and is one fewer transition. I ended up with a dedicated failure card in place of the payment card because a failed payment is the moment the customer is most likely to bail, and a banner above a form full of card digits reads as "you typed it wrong". A card of its own can say clearly that the bank said no, that nothing was charged, and offer the two useful actions, while the order stays visible above it. The cost is one extra state and a transition back; the form values survive it.
+**A failure card or an inline banner.** The banner keeps the form in view and is one less transition. I went with a card of its own in place of the payment card, because a failed payment is the moment people leave, and a red banner above a form full of card digits reads as "you typed it wrong". The card can say plainly that the bank said no and nothing was charged, and offer the two useful actions, while the order stays visible above it. The cost is one extra state and a transition back. The form values survive it.
 
-**2. Reading brand from the store's URL, which needs a server.** The brief says no server is needed and I liked that purity. But a checkout that looks like the store it sits on is most of what makes an embed feel trustworthy, and a browser cannot read another site's HTML. So there is one small function (`apps/checkout/api/brand.ts`, also mounted in the Vite dev server) that reads public signals from a public page. It is heuristic, cached, size-capped, time-capped, and blocks private addresses. If it fails, the checkout falls back to a plain default and nobody notices. The trade-off I accepted: the payment is still fake and client-side; only this read-only lookup touches a server.
+**Reading the brand from the store's URL, which needs a server.** The brief says no server is needed and I liked that. But a checkout that looks like the store it sits in is most of what makes it feel trustworthy, and a browser cannot read another site's HTML. So there is one small function that reads public signals from a public page: the theme colour, the brand and button colours in the CSS, the site name, the icons. It is written for hostile input, since anyone can call it. If it fails, the checkout falls back to a plain default and nobody notices. The payment itself is still fake and client-side. Only this read-only lookup touches a server.
 
-Other calls I considered and settled quickly: three callbacks rather than an event emitter (small API, hard to misuse); `onError` as informational and `onClose` as the only terminal event (one place to end every flow); a closed shadow root for the overlay (host CSS cannot break it).
+## What I would do next
 
-## What I'd explore next
+- A real backend: `sessionId` as the idempotency key, a webhook so the store does not have to trust the browser callback, and a way to resolve an "unconfirmed" payment after the page is gone.
+- The real bank challenge, with the bank's own iframe and a return path.
+- Express wallets above the form.
+- Per-field card iframes, the way Stripe does it.
+- Keeping the caret in place when editing the middle of a card number.
+- Unit tests for the card helpers, and the end-to-end run in CI.
 
-- **Real card isolation per field.** Today the card lives in one iframe. Stripe-style per-field iframes would keep the number, expiry and CVC in separate documents.
-- **Express row.** Apple Pay and Google Pay above the form with an "or" divider, following Apple's rule that the button is never smaller than the others.
-- **Idempotency and webhooks.** `sessionId` as an idempotency key and a server-side webhook so the host does not need to trust the browser callback, and so an "unconfirmed" payment can be resolved after the page is gone.
-- **A real bank challenge.** The stand-in shows the state and the copy; the real thing is the bank's iframe and a return path keyed by session id.
-- **Caret-preserving formatting** when editing the middle of the card number. Backspace over a separator already removes the right digit, but the caret still jumps to the end.
-- **A real renderer** for the brand reader, for sites whose colours only exist in JavaScript. Rate limiting and DNS checks are in, but per instance; a shared store would make them global.
-- **Unit tests** for the card utilities and the message guards, and `pnpm test:e2e` as a CI job with a shared brand-lookup budget so the rate-limit check does not starve the rest.
-- **Dark surfaces, RTL and localised currency** once there is a second locale to test against.
+## Deploying
 
-## Deploying (Vercel, two projects, one repo)
-
-Two projects so the demo and the checkout sit on different origins, which is the whole point.
-
-1. **Checkout project:** Root Directory `apps/checkout`, framework Vite, no env vars. The `api/` folder becomes a serverless function on its own.
-2. **Demo project:** Root Directory `apps/demo`, env var `VITE_CHECKOUT_ORIGIN=https://<checkout-project>.vercel.app` (the script tag in every demo page is built from it).
-3. **Turn off Deployment Protection on both projects** (Settings, Deployment Protection). It is on by default for team accounts and answers every request, including the SDK script and the iframe, with a redirect to a Vercel login, so an embed on any other site silently fails.
-4. From the CLI the same thing is `vercel build --prod && vercel deploy --prebuilt --prod` inside each app folder; the build runs locally, where the pnpm workspace is available.
-
+Two Vercel projects from this repo, so the store and the checkout are on different origins. Root directory `apps/checkout` for one, `apps/demo` for the other with `VITE_CHECKOUT_ORIGIN` set to the checkout's URL. Turn off Deployment Protection on both, or the script and the iframe get redirected to a Vercel login and the embed fails silently on any other site.
