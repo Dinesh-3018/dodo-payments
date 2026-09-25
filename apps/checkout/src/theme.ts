@@ -1,3 +1,4 @@
+import { HEX_COLOUR } from "@dodo/sdk/sanitize";
 import type { InitMessage, Radius } from "./protocol";
 
 export interface ResolvedBrand {
@@ -37,7 +38,7 @@ export async function resolveBrand(init: InitMessage, hostOrigin: string): Promi
       | { ok: false };
     if (!body.ok) return explicit;
     const out: ResolvedBrand = { ...explicit };
-    if (!init.theme.accent && body.brand.accent) {
+    if (!init.theme.accent && body.brand.accent && HEX_COLOUR.test(body.brand.accent)) {
       out.accent = body.brand.accent;
       out.accentSource = "site";
     }
@@ -53,8 +54,10 @@ const RADIUS: Record<Radius, string> = { none: "0px", small: "6px", medium: "10p
 
 export function applyTheme(accent: string, radius: Radius | undefined, font: string | undefined) {
   const style = document.documentElement.style;
-  style.setProperty("--accent", accent);
-  style.setProperty("--accent-ink", readableOn(accent));
+  // Belt and braces: only a hex colour ever reaches a CSS variable.
+  const safeAccent = HEX_COLOUR.test(accent) ? accent : DEFAULT_ACCENT;
+  style.setProperty("--accent", safeAccent);
+  style.setProperty("--accent-ink", readableOn(safeAccent));
   if (radius) style.setProperty("--radius", RADIUS[radius]);
   if (font) style.setProperty("--font", font);
 }

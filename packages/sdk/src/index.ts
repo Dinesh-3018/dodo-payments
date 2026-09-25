@@ -21,8 +21,18 @@
  * checkout closed (reason). Every open() ends in exactly one onClose.
  */
 
-export type Layout = "drawer" | "modal";
-export type Radius = "none" | "small" | "medium" | "large";
+import {
+  sanitizeEmail,
+  sanitizeMerchant,
+  sanitizeTheme,
+  PRODUCT_ID,
+  type Layout,
+  type Merchant,
+  type Radius,
+  type Theme,
+} from "./sanitize";
+
+export type { Layout, Merchant, Radius, Theme };
 
 /** Why the checkout closed. Exactly one onClose fires per open(). */
 export type CloseReason =
@@ -32,36 +42,15 @@ export type CloseReason =
   | "error"; // a terminal error closed it (onError fired first)
 
 export type ErrorCode =
-  | "load_failed" // the checkout did not load; terminal
+  | "load_failed" // the checkout did not load or could not talk to this page; terminal
   | "product_not_found" // unknown productId; terminal
   | "payment_declined" // the bank said no; the customer can retry
   | "payment_failed" // a transient failure; the customer can retry
   | "offline"; // no connection when paying; the customer can retry
 
-export interface Theme {
-  /** Hex colour like "#0f766e". Used for the pay button and focus ring. */
-  accent?: string;
-  radius?: Radius;
-  /** A font-family string. System fonts only; nothing is downloaded. */
-  font?: string;
-}
-
-export interface Merchant {
-  /**
-   * The store's URL. The checkout reads the store's accent colour, name and
-   * logo from it so the checkout matches the site with no configuration.
-   * Defaults to the page the checkout is opened on. Explicit values below win.
-   */
-  site?: string;
-  /** Shown in the checkout header. Max 40 characters. */
-  name?: string;
-  /** https URL of a square logo. */
-  logo?: string;
-}
-
 export interface OpenOptions {
   productId: string;
-  /** "drawer" (default) slides in from the right. "modal" is centred. Both become a full-height sheet on phones. */
+  /** "drawer" (default) slides in from the right. "modal" is centred. On phones the drawer is a full-height sheet and the modal a bottom sheet. */
   layout?: Layout;
   theme?: Theme;
   merchant?: Merchant;
@@ -91,6 +80,7 @@ declare global {
 export type Protocol = "dodo-checkout/1";
 const PROTOCOL: Protocol = "dodo-checkout/1";
 const LOAD_TIMEOUT_MS = 10_000;
+const CLOSE_FALLBACK_MS = 1500;
 const EXIT_MS = 240;
 
 /** Host -> checkout. */
@@ -109,8 +99,11 @@ export type ToCheckout = InitMessage | { protocol: Protocol; type: "close_reques
 /** Checkout -> host. */
 export type FromCheckout =
   | { protocol: Protocol; type: "ready" }
+  | { protocol: Protocol; type: "init_rejected"; reason: string }
+  | { protocol: Protocol; type: "init_ok"; sessionId: string }
   | { protocol: Protocol; type: "resize"; sessionId: string; height: number }
   | { protocol: Protocol; type: "dismissable"; sessionId: string; value: boolean }
+  | { protocol: Protocol; type: "nudge"; sessionId: string }
   | { protocol: Protocol; type: "success"; sessionId: string }
   | { protocol: Protocol; type: "error"; sessionId: string; code: ErrorCode; message: string; terminal: boolean }
   | { protocol: Protocol; type: "close"; sessionId: string; reason: "user" | "complete" | "error" };
@@ -146,8 +139,8 @@ export function open(options: OpenOptions): CheckoutHandle {
 function createSession(options: OpenOptions): { handle: CheckoutHandle; focus(): void } {
   const sessionId = newSessionId();
   const layout: Layout = options.layout ?? "drawer";
-  const theme = sanitizeTheme(options.theme);
-  const merchant = sanitizeMerchant(options.merchant);
+  const theme = sanitizeTheme(options.theme, warn);
+  const merchant = sanitizeMerchant(options.merchant, warn);
   const customerEmail = sanitizeEmail(options.customerEmail);
 
   const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -161,7 +154,7 @@ function createSession(options: OpenOptions): { handle: CheckoutHandle; focus():
   shadow.innerHTML = `
     <style>${STYLES}</style>
     <div class="root" role="dialog" aria-modal="true" aria-label="Checkout">
-      <div class="backdrop" part="backdrop"></div>
+      <div class="backdrop"></div>
       <div tabindex="0" class="sentinel" aria-hidden="true"></div>
       <div class="panel ${layout}">
         <div class="loading" aria-live="polite">
@@ -182,6 +175,7 @@ function createSession(options: OpenOptions): { handle: CheckoutHandle; focus():
   let closed = false;
   let ready = false;
   let dismissable = true;
+  let closeFallback = 0;
 
   const focusFrame = () => frame.focus();
   sentinels.forEach((s) => s.addEventListener("focus", focusFrame));
@@ -193,15 +187,7 @@ function createSession(options: OpenOptions): { handle: CheckoutHandle; focus():
   };
 
   const sendInit = () => {
-    const init: ToCheckout = {
-      protocol: PROTOCOL,
-      type: "init",
-      sessionId,
-      productId: options.productId,
-      layout,
-      theme,
-      merchant,
-    };
+    const init: InitMessage = { protocol: PROTOCOL, type: "init", sessionId, productId: options.productId, layout, theme, merchant };
     if (customerEmail) init.customerEmail = customerEmail;
     post(init);
   };
@@ -215,20 +201,31 @@ function createSession(options: OpenOptions): { handle: CheckoutHandle; focus():
     if (!data || data.protocol !== PROTOCOL) return;
 
     if (data.type === "ready") {
-      // Idempotent: the checkout may announce itself more than once.
-      sendInit();
-      if (!ready) {
-        ready = true;
-        clearTimeout(loadTimer);
-        root.classList.add("is-ready");
-        focusFrame();
-      }
+      sendInit(); // idempotent: the checkout may announce itself more than once
+      return;
+    }
+    if (data.type === "init_rejected") {
+      finish("error", () =>
+        callHost(options.onError, {
+          code: "load_failed",
+          message: `The checkout cannot talk to this page: ${String(data.reason ?? "unknown reason")}`,
+        }),
+      );
       return;
     }
     if (data.sessionId !== sessionId) return;
     const message = data as unknown as FromCheckout;
 
     switch (message.type) {
+      case "init_ok":
+        // Only now is the checkout really usable. Until here the load timer runs.
+        if (!ready) {
+          ready = true;
+          clearTimeout(loadTimer);
+          root.classList.add("is-ready");
+          focusFrame();
+        }
+        break;
       case "resize":
         if (typeof message.height === "number" && message.height > 0) {
           panel.style.setProperty("--h", `${Math.ceil(message.height)}px`);
@@ -236,7 +233,9 @@ function createSession(options: OpenOptions): { handle: CheckoutHandle; focus():
         break;
       case "dismissable":
         dismissable = message.value === true;
-        root.classList.toggle("is-locked", !dismissable);
+        break;
+      case "nudge":
+        nudge();
         break;
       case "success":
         callHost(options.onSuccess, { sessionId });
@@ -254,7 +253,14 @@ function createSession(options: OpenOptions): { handle: CheckoutHandle; focus():
 
   // -- dismissal -------------------------------------------------------------
 
+  const nudge = () => {
+    panel.classList.remove("nudge");
+    void panel.offsetWidth; // restart the animation
+    panel.classList.add("nudge");
+  };
+
   // The customer asks to close. The checkout decides (it refuses mid-payment).
+  // If the checkout never answers, the SDK closes anyway rather than trap anyone.
   const requestClose = () => {
     if (closed) return;
     if (!ready) {
@@ -262,12 +268,14 @@ function createSession(options: OpenOptions): { handle: CheckoutHandle; focus():
       return;
     }
     if (!dismissable) {
-      panel.classList.remove("nudge");
-      void panel.offsetWidth; // restart the animation
-      panel.classList.add("nudge");
+      nudge();
       return;
     }
     post({ protocol: PROTOCOL, type: "close_request", sessionId });
+    clearTimeout(closeFallback);
+    closeFallback = window.setTimeout(() => {
+      if (!closed && dismissable) finish("user");
+    }, CLOSE_FALLBACK_MS);
   };
 
   const onKeydown = (event: KeyboardEvent) => {
@@ -279,29 +287,36 @@ function createSession(options: OpenOptions): { handle: CheckoutHandle; focus():
 
   const loadTimer = window.setTimeout(() => {
     if (ready || closed) return;
-    callHost(options.onError, {
-      code: "load_failed",
-      message: "The checkout did not load. Check your connection and try again.",
-    });
-    finish("error");
+    finish("error", () =>
+      callHost(options.onError, {
+        code: "load_failed",
+        message: "The checkout did not load. Check your connection and try again.",
+      }),
+    );
   }, LOAD_TIMEOUT_MS);
 
   // -- teardown --------------------------------------------------------------
 
-  function finish(reason: CloseReason) {
+  /**
+   * Everything the host page can observe is restored synchronously, so a host
+   * that closes and immediately reopens gets a clean slate. Only the exit
+   * animation, the DOM removal and onClose are deferred.
+   */
+  function finish(reason: CloseReason, beforeClose?: () => void) {
     if (closed) return;
     closed = true;
     clearTimeout(loadTimer);
+    clearTimeout(closeFallback);
     window.removeEventListener("message", onMessage);
     document.removeEventListener("keydown", onKeydown);
     root.classList.remove("is-open");
-    // Release the singleton before telling the host, so a host that reopens
-    // inside onClose gets a fresh checkout rather than the dying one.
+    root.classList.add("is-exiting");
+    document.body.style.overflow = previousOverflow;
     active = null;
+    previouslyFocused?.focus();
+    beforeClose?.();
     window.setTimeout(() => {
       host.remove();
-      document.body.style.overflow = previousOverflow;
-      previouslyFocused?.focus?.();
       callHost(options.onClose, { reason });
     }, prefersReducedMotion() ? 0 : EXIT_MS);
   }
@@ -311,7 +326,11 @@ function createSession(options: OpenOptions): { handle: CheckoutHandle; focus():
   document.body.style.overflow = "hidden";
   document.body.appendChild(host);
   frame.src = `${CHECKOUT_ORIGIN}/`;
-  requestAnimationFrame(() => requestAnimationFrame(() => root.classList.add("is-open")));
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      if (!closed) root.classList.add("is-open");
+    }),
+  );
 
   const handle: CheckoutHandle = Object.freeze({
     sessionId,
@@ -330,7 +349,7 @@ function validateOptions(options: unknown): asserts options is OpenOptions {
     throw new TypeError("DodoCheckout.open(options): an options object is required.");
   }
   const o = options as Record<string, unknown>;
-  if (typeof o.productId !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(o.productId)) {
+  if (typeof o.productId !== "string" || !PRODUCT_ID.test(o.productId)) {
     throw new TypeError('DodoCheckout.open: productId must be a string like "prod_123".');
   }
   for (const key of ["onSuccess", "onClose", "onError"] as const) {
@@ -341,64 +360,6 @@ function validateOptions(options: unknown): asserts options is OpenOptions {
   if (o.layout !== undefined && o.layout !== "drawer" && o.layout !== "modal") {
     throw new TypeError('DodoCheckout.open: layout must be "drawer" or "modal".');
   }
-}
-
-function sanitizeTheme(theme: Theme | undefined): Theme {
-  const out: Theme = {};
-  if (!theme || typeof theme !== "object") return out;
-  if (theme.accent !== undefined) {
-    const accent = String(theme.accent).trim();
-    if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(accent)) out.accent = accent.toLowerCase();
-    else warn(`theme.accent ${JSON.stringify(theme.accent)} ignored. Use a hex colour like "#0f766e".`);
-  }
-  if (theme.radius !== undefined) {
-    if (["none", "small", "medium", "large"].includes(theme.radius)) out.radius = theme.radius;
-    else warn(`theme.radius ${JSON.stringify(theme.radius)} ignored. Use "none", "small", "medium" or "large".`);
-  }
-  if (theme.font !== undefined) {
-    const font = String(theme.font).trim();
-    if (/^[A-Za-z0-9 ,'"-]{1,120}$/.test(font)) out.font = font;
-    else warn("theme.font ignored. Use a plain font-family list; webfonts are not loaded.");
-  }
-  return out;
-}
-
-function sanitizeMerchant(merchant: Merchant | undefined): Merchant {
-  const out: Merchant = {};
-  if (!merchant || typeof merchant !== "object") return out;
-  if (merchant.name !== undefined) {
-    const name = String(merchant.name).replace(/[\u0000-\u001f\u007f]/g, "").trim();
-    if (name.length > 0 && name.length <= 40) out.name = name;
-    else warn("merchant.name ignored. Use 1 to 40 characters.");
-  }
-  if (merchant.logo !== undefined) {
-    const logo = sanitizeUrl(merchant.logo);
-    if (logo) out.logo = logo;
-    else warn("merchant.logo ignored. Use an https URL.");
-  }
-  if (merchant.site !== undefined) {
-    const site = sanitizeUrl(merchant.site);
-    if (site) out.site = site;
-    else warn("merchant.site ignored. Use an https URL.");
-  }
-  return out;
-}
-
-function sanitizeUrl(value: unknown): string | undefined {
-  try {
-    const url = new URL(String(value));
-    const local = url.hostname === "localhost" || url.hostname === "127.0.0.1";
-    if (url.protocol === "https:" || (url.protocol === "http:" && local)) return url.href;
-  } catch {
-    /* fall through */
-  }
-  return undefined;
-}
-
-function sanitizeEmail(email: unknown): string | undefined {
-  if (typeof email !== "string") return undefined;
-  const value = email.trim();
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) && value.length <= 254 ? value : undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -452,6 +413,7 @@ const STYLES = `
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --ease: cubic-bezier(0.2, 0, 0, 1);
 }
+.root.is-exiting { pointer-events: none; }
 .backdrop {
   position: absolute; inset: 0; background: rgba(10, 13, 18, 0.5);
   opacity: 0; transition: opacity 220ms ease;

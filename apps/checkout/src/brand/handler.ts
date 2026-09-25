@@ -1,27 +1,33 @@
 import { extractBrand, BrandError, type Brand } from "./extract";
 
 const CACHE_TTL_MS = 60 * 60 * 1000;
+const CACHE_MAX = 500;
 const cache = new Map<string, { at: number; body: BrandResponse }>();
 
 export type BrandResponse = { ok: true; brand: Brand } | { ok: false; code: string; message: string };
 
 /**
  * GET /api/brand?url=https://store.example
- * Public data in, public data out, so the response is cacheable and CORS-open.
+ * Same-origin only: the checkout calls it from inside the iframe. Public data
+ * in, public data out, so responses are cacheable.
  */
 export async function handleBrandRequest(
   target: string | null,
-  options: { allowPrivate: boolean },
+  options: { allowLoopback: boolean },
 ): Promise<{ status: number; body: BrandResponse }> {
   if (!target) return { status: 400, body: { ok: false, code: "invalid_url", message: "Missing url parameter." } };
 
-  const cached = cache.get(target);
-  if (cached && Date.now() - cached.at < CACHE_TTL_MS) return { status: 200, body: cached.body };
+  const key = cacheKey(target);
+  const cached = key ? cache.get(key) : undefined;
+  if (cached && key) {
+    if (Date.now() - cached.at < CACHE_TTL_MS) return { status: 200, body: cached.body };
+    cache.delete(key);
+  }
 
   try {
-    const brand = await extractBrand(target, { allowPrivate: options.allowPrivate });
+    const brand = await extractBrand(target, { allowLoopback: options.allowLoopback });
     const body: BrandResponse = { ok: true, brand };
-    cache.set(target, { at: Date.now(), body });
+    if (key) remember(key, body);
     return { status: 200, body };
   } catch (error) {
     if (error instanceof BrandError) {
@@ -32,8 +38,25 @@ export async function handleBrandRequest(
   }
 }
 
+/** origin + path, lower-cased host, no query, no hash. */
+function cacheKey(target: string): string | null {
+  try {
+    const url = new URL(target.trim());
+    return `${url.protocol}//${url.hostname.toLowerCase()}${url.port ? ":" + url.port : ""}${url.pathname}`;
+  } catch {
+    return null;
+  }
+}
+
+function remember(key: string, body: BrandResponse) {
+  if (cache.size >= CACHE_MAX) {
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) cache.delete(oldest);
+  }
+  cache.set(key, { at: Date.now(), body });
+}
+
 export const brandResponseHeaders = {
   "content-type": "application/json; charset=utf-8",
   "cache-control": "public, s-maxage=3600, stale-while-revalidate=86400",
-  "access-control-allow-origin": "*",
 };

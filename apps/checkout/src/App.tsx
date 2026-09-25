@@ -11,13 +11,14 @@ import { Summary } from "./components/Summary";
 import { CheckoutForm, emptyForm, type FormValues } from "./components/CheckoutForm";
 import { FailedScreen, failureFor, type Failure } from "./components/FailedScreen";
 import { SuccessScreen } from "./components/SuccessScreen";
-import { NotFoundScreen, Skeleton, StandaloneScreen } from "./components/Screens";
+import { NotFoundScreen, ProblemScreen, Skeleton, StandaloneScreen } from "./components/Screens";
 
 type Phase =
   | { status: "standalone" }
   | { status: "booting" }
   | { status: "loading" }
   | { status: "not_found" }
+  | { status: "fatal" }
   | { status: "ready"; focus: keyof FormValues }
   | { status: "processing" }
   | { status: "failed"; failure: Failure }
@@ -36,6 +37,7 @@ export function App() {
   const [brand, setBrand] = useState<ResolvedBrand | null>(null);
   const [form, setForm] = useState<FormValues>(emptyForm);
   const [summaryOpen, setSummaryOpen] = useState(true);
+  const [announce, setAnnounce] = useState("");
 
   const bridge = useRef<Bridge | null>(null);
   const phaseRef = useRef(phase);
@@ -47,9 +49,15 @@ export function App() {
 
   const requestClose = useCallback(() => {
     const current = phaseRef.current;
-    if (current.status === "processing") return; // the SDK nudges the panel; we hold the line
+    if (current.status === "processing") {
+      // Hold the line, but never silently: shake the panel and say why.
+      send({ type: "nudge" });
+      setAnnounce("");
+      setTimeout(() => setAnnounce("Hang on, we're confirming your payment."), 0);
+      return;
+    }
     if (current.status === "standalone") return;
-    if (current.status === "not_found") {
+    if (current.status === "not_found" || current.status === "fatal") {
       send({ type: "close", reason: "error" });
       return;
     }
@@ -82,18 +90,24 @@ export function App() {
     setPhase({ status: "loading" });
     if (init.customerEmail) setForm((f) => ({ ...f, email: init.customerEmail ?? f.email }));
 
-    Promise.all([fetchProduct(init.productId), resolveBrand(init, init.hostOrigin)]).then(([p, b]) => {
-      if (cancelled) return;
-      applyTheme(b.accent, init.theme.radius, init.theme.font);
-      setBrand(b);
-      if (!p) {
-        setPhase({ status: "not_found" });
-        send({ type: "error", code: "product_not_found", message: `No product with id "${init.productId}".`, terminal: true });
-        return;
-      }
-      setProduct(p);
-      setPhase({ status: "ready", focus: init.customerEmail ? "number" : "email" });
-    });
+    Promise.all([fetchProduct(init.productId), resolveBrand(init, init.hostOrigin)])
+      .then(([p, b]) => {
+        if (cancelled) return;
+        applyTheme(b.accent, init.theme.radius, init.theme.font);
+        setBrand(b);
+        if (!p) {
+          setPhase({ status: "not_found" });
+          send({ type: "error", code: "product_not_found", message: `No product with id "${init.productId}".`, terminal: true });
+          return;
+        }
+        setProduct(p);
+        setPhase({ status: "ready", focus: init.customerEmail ? "number" : "email" });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPhase({ status: "fatal" });
+        send({ type: "error", code: "load_failed", message: "The checkout hit an unexpected error while setting up.", terminal: true });
+      });
     return () => {
       cancelled = true;
     };
@@ -163,6 +177,14 @@ export function App() {
           <Screen key="not_found">
             <NotFoundScreen onClose={requestClose} />
           </Screen>
+        ) : phase.status === "fatal" ? (
+          <Screen key="fatal">
+            <ProblemScreen
+              title="Something went wrong opening the checkout"
+              body="This is on our side, not yours. Close this and try again in a moment."
+              onClose={requestClose}
+            />
+          </Screen>
         ) : phase.status === "failed" ? (
           <Screen key="failed">
             <FailedScreen
@@ -199,6 +221,9 @@ export function App() {
             />
           </Screen>
         ) : null}
+      </div>
+      <div className="sr-only" aria-live="assertive">
+        {announce}
       </div>
     </main>
   );

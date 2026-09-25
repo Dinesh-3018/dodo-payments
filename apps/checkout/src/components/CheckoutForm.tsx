@@ -90,14 +90,17 @@ export function CheckoutForm({ values, onChange, product, merchantName, processi
   const blur = (key: Key) => () => setTouched((t) => ({ ...t, [key]: true }));
 
   function onNumber(event: ChangeEvent<HTMLInputElement>) {
-    const raw = digitsOnly(event.target.value);
-    const digits = raw.slice(0, numberLength(detectBrand(raw)));
-    onChange({ ...values, number: digits });
-    if (digits.length === numberLength(detectBrand(digits)) && luhn(digits)) refs.expiry.current?.focus();
+    const raw = fixBackspace(event, values.number);
+    const newBrand = detectBrand(raw);
+    const digits = raw.slice(0, numberLength(newBrand));
+    // A CVC typed for one brand must not survive a switch to another.
+    const cvc = newBrand === brand ? values.cvc : values.cvc.slice(0, cvcLength(newBrand));
+    onChange({ ...values, number: digits, cvc });
+    if (digits.length === numberLength(newBrand) && luhn(digits)) refs.expiry.current?.focus();
   }
 
   function onExpiry(event: ChangeEvent<HTMLInputElement>) {
-    let digits = digitsOnly(event.target.value).slice(0, 4);
+    let digits = fixBackspace(event, values.expiry).slice(0, 4);
     if (digits.length === 1 && Number(digits) > 1) digits = "0" + digits; // "5" means May
     onChange({ ...values, expiry: digits });
     if (digits.length === 4 && !validateExpiry(digits)) refs.cvc.current?.focus();
@@ -183,7 +186,13 @@ export function CheckoutForm({ values, onChange, product, merchantName, processi
         </div>
       </fieldset>
 
-      <button type="submit" className={"pay" + (processing ? " is-busy" : "")} aria-busy={processing} aria-live="polite">
+      <button
+        type="submit"
+        className={"pay" + (processing ? " is-busy" : "")}
+        aria-busy={processing}
+        aria-disabled={processing}
+        aria-live="polite"
+      >
         {processing ? (
           <>
             <Spinner />
@@ -213,6 +222,21 @@ export function CheckoutForm({ values, onChange, product, merchantName, processi
       </p>
     </form>
   );
+}
+
+/**
+ * Backspace over a formatting space or slash removes the digit before it,
+ * instead of removing the separator (which the formatter would put straight
+ * back, making the key feel dead).
+ */
+function fixBackspace(event: ChangeEvent<HTMLInputElement>, previousDigits: string): string {
+  const raw = digitsOnly(event.target.value);
+  const inputType = (event.nativeEvent as InputEvent).inputType;
+  if (inputType !== "deleteContentBackward" || raw !== previousDigits) return raw;
+  const caret = event.target.selectionStart ?? event.target.value.length;
+  const before = digitsOnly(event.target.value.slice(0, caret));
+  if (before.length === 0) return raw;
+  return before.slice(0, -1) + raw.slice(before.length);
 }
 
 function Field({ id, label, error, hint, children }: { id: string; label: string; error?: string; hint?: string; children: ReactNode }) {

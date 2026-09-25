@@ -68,18 +68,20 @@ export function validateNumber(digits: string): string | null {
 }
 
 export function validateExpiry(digits: string, now = new Date()): string | null {
-  if (digits.length < 4) return "Your card's expiry is incomplete.";
+  if (digits.length < 4) return "Expiry is incomplete.";
   const month = Number(digits.slice(0, 2));
   const year = 2000 + Number(digits.slice(2, 4));
-  if (month < 1 || month > 12) return "Enter a valid month, 01 to 12.";
+  if (month < 1 || month > 12) return "Enter a month from 01 to 12.";
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
-  if (year < currentYear || (year === currentYear && month < currentMonth)) return "Your card has expired.";
-  if (year > currentYear + 20) return "Enter a valid expiry year.";
+  if (year < currentYear || (year === currentYear && month < currentMonth)) return "This card has expired.";
+  if (year > currentYear + 20) return "Enter a valid year.";
   return null;
 }
 
 export function validateCvc(digits: string, brand: CardBrand): string | null {
-  if (digits.length < cvcLength(brand)) return "Your CVC is incomplete.";
+  const need = cvcLength(brand);
+  if (digits.length < need) return "CVC is incomplete.";
+  if (digits.length > need) return `CVC should be ${need} digits.`;
   return null;
 }

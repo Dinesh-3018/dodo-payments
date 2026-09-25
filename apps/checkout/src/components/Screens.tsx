@@ -23,7 +23,7 @@ export function Skeleton({ label }: { label: string }) {
   );
 }
 
-export function NotFoundScreen({ onClose }: { onClose: () => void }) {
+export function ProblemScreen({ title, body, onClose }: { title: string; body: string; onClose: () => void }) {
   const button = useRef<HTMLButtonElement>(null);
   useEffect(() => button.current?.focus(), []);
   return (
@@ -31,13 +31,23 @@ export function NotFoundScreen({ onClose }: { onClose: () => void }) {
       <div className="state-icon is-danger">
         <AlertIcon />
       </div>
-      <h2 className="state-title">We couldn't find that product</h2>
-      <p className="state-body">The store sent a product we don't recognise, so there is nothing to pay for.</p>
+      <h2 className="state-title">{title}</h2>
+      <p className="state-body">{body}</p>
       <p className="state-note">No money has been taken.</p>
       <button ref={button} type="button" className="pay" onClick={onClose}>
         Close
       </button>
     </div>
+  );
+}
+
+export function NotFoundScreen({ onClose }: { onClose: () => void }) {
+  return (
+    <ProblemScreen
+      title="We couldn't find that product"
+      body="The store sent a product we don't recognise, so there is nothing to pay for."
+      onClose={onClose}
+    />
   );
 }
 
