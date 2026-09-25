@@ -62,7 +62,7 @@ await page.waitForTimeout(400);
 await page.screenshot({ path: `${SHOTS}/01-drawer-form.png` });
 ok("brand name from site", (await frame.locator(".hdr-name").textContent())?.includes("Lakshmi"));
 const accent = await frame.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--accent").trim());
-ok("accent auto-read from site", accent === "#c2410c", accent);
+ok("accent auto-read from site", accent === "#1d4ed8", accent);
 
 // perks and quantity
 ok("one perk unlocked at qty 1", (await frame.locator(".perk.is-unlocked").count()) === 1);
@@ -395,13 +395,13 @@ await mini.close();
 const decl = await context.newPage();
 decl.on("console", (m) => { if (m.type() === "error") consoleErrors.push("declarative: " + m.text()); });
 await decl.goto(DEMO + "declarative.html");
-ok("script tag defaults are read", await decl.evaluate(() => window.DodoCheckout?.defaults?.layout === "modal" && window.DodoCheckout.defaults.theme?.accent === "#c2410c"));
+ok("script tag defaults are read", await decl.evaluate(() => window.DodoCheckout?.defaults?.layout === "modal" && window.DodoCheckout.defaults.theme?.accent === "#1d4ed8"));
 await decl.click("[data-dodo-product]");
 await decl.waitForFunction(() => !!document.querySelector("[data-dodo-checkout]"));
 let declFrame;
 for (let i = 0; i < 100 && !declFrame; i++) { declFrame = decl.frames().find((f) => f.url().startsWith(CHECKOUT)); if (!declFrame) await decl.waitForTimeout(50); }
 await declFrame.getByLabel("Email").waitFor({ timeout: 10000 });
-ok("declarative open used tag defaults and element quantity", (await declFrame.locator(".stepper-value").textContent()) === "2" && (await declFrame.locator(".hdr-name").textContent()) === "Lakshmi Stores" && (await declFrame.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--accent").trim())) === "#c2410c");
+ok("declarative open used tag defaults and element quantity", (await declFrame.locator(".stepper-value").textContent()) === "2" && (await declFrame.locator(".hdr-name").textContent()) === "Lakshmi Stores" && (await declFrame.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--accent").trim())) === "#1d4ed8");
 await declFrame.getByLabel("Email").fill("sam@example.com");
 await declFrame.getByLabel("Card number").fill("4242424242424242");
 await declFrame.getByLabel("Expiry").fill("1230");

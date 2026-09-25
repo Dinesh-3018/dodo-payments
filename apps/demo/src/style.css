@@ -1,5 +1,5 @@
 :root {
-  --brand: #c2410c;
+  --brand: #1d4ed8;
   --brand-ink: #ffffff;
   --ink: #0a0a0a;
   --ink-2: #404040;
@@ -74,7 +74,7 @@ h1 { margin: 0 0 8px; font-size: 28px; font-weight: 600; letter-spacing: -0.02em
   border-radius: 22px;
   box-shadow: var(--shadow-card);
 }
-.pcard-art { height: 104px; display: grid; place-items: center; border-radius: 16px; background: #fdf1eb; margin-bottom: 8px; }
+.pcard-art { height: 104px; display: grid; place-items: center; border-radius: 16px; background: #eef2ff; margin-bottom: 8px; }
 .pcard h2 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
 .pcard-meta { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
 .pcard-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
