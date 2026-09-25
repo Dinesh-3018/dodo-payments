@@ -10,6 +10,15 @@
  *     onError: ({ code, message }) => {},
  *   });
  *
+ * Or with no JavaScript at all: put the defaults on the script tag and mark
+ * any element with data-dodo-product.
+ *
+ *   <script src=".../sdk/dodo-checkout.js" data-layout="modal" data-accent="#1d4ed8"></script>
+ *   <button data-dodo-product="prod_123" data-dodo-quantity="2">Buy</button>
+ *
+ * The element then receives "dodo:success", "dodo:close" and "dodo:error"
+ * events (they bubble) with the same payloads the callbacks get.
+ *
  * How it works: open() draws an overlay on the host page and puts the hosted
  * checkout inside an iframe on a different origin. Host and checkout talk over
  * postMessage with a strict origin check, a per-open session id, and a fixed
@@ -39,7 +48,8 @@ export type ErrorCode =
   | "authentication_failed" // the bank's extra check was declined or abandoned; the customer can retry
   | "insufficient_stock" // fewer units left than asked for; the customer can lower the quantity
   | "payment_unconfirmed" // the charge was sent but the connection dropped before the answer; outcome unknown
-  | "offline"; // no connection when paying; the customer can retry
+  | "offline" // no connection when paying; the customer can retry
+  | "invalid_options"; // a data-dodo-product element was misconfigured (open() throws instead)
 
 export interface Theme {
   /** Hex colour like "#0f766e". Used for the pay button and the focus ring, nothing else. */
@@ -85,9 +95,12 @@ export interface CheckoutHandle {
 
 declare global {
   interface Window {
-    DodoCheckout: { open(options: OpenOptions): CheckoutHandle; readonly version: string };
+    DodoCheckout: { open(options: OpenOptions): CheckoutHandle; readonly defaults: ScriptDefaults; readonly version: string };
   }
 }
+
+/** Defaults read from the script tag's data-* attributes. Explicit open() options win. */
+export type ScriptDefaults = Partial<Pick<OpenOptions, "layout" | "theme" | "merchant">>;
 
 // ---------------------------------------------------------------------------
 // Wire protocol. Both sides check origin, source window, protocol and session.
@@ -130,6 +143,7 @@ export const version = "0.1.0";
 
 const CHECKOUT_ORIGIN = typeof document === "undefined" ? "" : resolveCheckoutOrigin();
 
+
 let active: { handle: CheckoutHandle; focus(): void } | null = null;
 
 /**
@@ -147,256 +161,16 @@ export function open(options: OpenOptions): CheckoutHandle {
     active.focus();
     return active.handle;
   }
-  const session = createSession(options);
+  const session = createSession(withDefaults(options));
   active = session;
   return session.handle;
 }
 
-// ---------------------------------------------------------------------------
-
-function createSession(options: OpenOptions): { handle: CheckoutHandle; focus(): void } {
-  const sessionId = newSessionId();
-  const layout: Layout = options.layout ?? "drawer";
-  const theme = sanitizeTheme(options.theme, warn);
-  const merchant = sanitizeMerchant(options.merchant, warn);
-  const customerEmail = sanitizeEmail(options.customerEmail);
-
-  const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  const previousOverflow = document.body.style.overflow;
-
-  // Everything lives in a closed shadow root so host CSS cannot restyle the
-  // overlay and our styles cannot leak into the host page.
-  const host = document.createElement("div");
-  host.setAttribute("data-dodo-checkout", sessionId);
-  const shadow = host.attachShadow({ mode: "closed" });
-  shadow.innerHTML = `
-    <style>${STYLES}</style>
-    <div class="root" role="dialog" aria-modal="true" aria-label="Checkout">
-      <div class="backdrop"></div>
-      <div tabindex="0" class="sentinel" aria-hidden="true"></div>
-      <div class="panel ${layout}">
-        <div class="loading" aria-live="polite">
-          <div class="spinner"></div>
-          <div>Opening secure checkout</div>
-        </div>
-        <iframe class="frame" title="Secure checkout" referrerpolicy="strict-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"></iframe>
-      </div>
-      <div tabindex="0" class="sentinel" aria-hidden="true"></div>
-    </div>`;
-
-  const root = shadow.querySelector<HTMLElement>(".root")!;
-  const backdrop = shadow.querySelector<HTMLElement>(".backdrop")!;
-  const panel = shadow.querySelector<HTMLElement>(".panel")!;
-  const frame = shadow.querySelector<HTMLIFrameElement>(".frame")!;
-  const sentinels = shadow.querySelectorAll<HTMLElement>(".sentinel");
-
-  let closed = false;
-  let ready = false;
-  let dismissable = true;
-  let closeFallback = 0;
-  let succeeded = false;
-  let backdropPressed = false;
-  const openedAt = performance.now();
-
-  const focusFrame = () => frame.focus();
-  sentinels.forEach((s) => s.addEventListener("focus", focusFrame));
-
-  // -- host -> checkout ------------------------------------------------------
-
-  const post = (message: ToCheckout) => {
-    frame.contentWindow?.postMessage(message, CHECKOUT_ORIGIN);
-  };
-
-  const sendInit = () => {
-    const init: InitMessage = {
-      protocol: PROTOCOL,
-      type: "init",
-      sessionId,
-      productId: options.productId,
-      quantity: options.quantity ?? 1,
-      layout,
-      theme,
-      merchant,
-    };
-    if (customerEmail) init.customerEmail = customerEmail;
-    post(init);
-  };
-
-  // -- checkout -> host ------------------------------------------------------
-
-  const onMessage = (event: MessageEvent) => {
-    if (event.origin !== CHECKOUT_ORIGIN) return;
-    if (event.source !== frame.contentWindow) return;
-    const data = event.data as { [key: string]: unknown } | null;
-    if (!data || data.protocol !== PROTOCOL) return;
-
-    if (data.type === "ready") {
-      sendInit(); // idempotent: the checkout may announce itself more than once
-      return;
-    }
-    if (data.type === "init_rejected") {
-      finish("error", () =>
-        callHost(options.onError, {
-          code: "load_failed",
-          message: `The checkout cannot talk to this page: ${String(data.reason ?? "unknown reason")}`,
-        }),
-      );
-      return;
-    }
-    if (data.sessionId !== sessionId) return;
-    const message = data as unknown as FromCheckout;
-
-    switch (message.type) {
-      case "init_ok":
-        // Only now is the checkout really usable. Until here the load timer runs.
-        if (!ready) {
-          ready = true;
-          clearTimeout(loadTimer);
-          root.classList.add("is-ready");
-          focusFrame();
-        }
-        break;
-      case "resize":
-        if (typeof message.height === "number" && message.height > 0) {
-          panel.style.setProperty("--h", `${Math.ceil(message.height)}px`);
-        }
-        break;
-      case "dismissable":
-        // The checkout is alive and telling us its state; a pending fallback
-        // close would be acting on stale information.
-        dismissable = message.value === true;
-        clearTimeout(closeFallback);
-        // While a payment is in flight, leaving the page is the one thing that
-        // can lose the answer. Let the browser ask first.
-        if (dismissable) window.removeEventListener("beforeunload", onBeforeUnload);
-        else window.addEventListener("beforeunload", onBeforeUnload);
-        break;
-      case "nudge":
-        clearTimeout(closeFallback);
-        nudge();
-        break;
-      case "success":
-        // At most once per session, whatever the checkout does.
-        if (succeeded) break;
-        succeeded = true;
-        callHost(options.onSuccess, { sessionId });
-        break;
-      case "error":
-        if (succeeded) break; // nothing can go wrong after the money moved
-        if (typeof message.code === "string" && typeof message.message === "string") {
-          callHost(options.onError, { code: message.code, message: message.message });
-        }
-        break;
-      case "close":
-        finish(message.reason === "complete" || message.reason === "error" ? message.reason : "user");
-        break;
-    }
-  };
-
-  // -- dismissal -------------------------------------------------------------
-
-  const nudge = () => {
-    panel.classList.remove("nudge");
-    void panel.offsetWidth; // restart the animation
-    panel.classList.add("nudge");
-  };
-
-  // The customer asks to close. The checkout decides (it refuses mid-payment).
-  // If the checkout never answers, the SDK closes anyway rather than trap anyone.
-  const requestClose = () => {
-    if (closed) return;
-    if (!ready) {
-      finish("user");
-      return;
-    }
-    if (!dismissable) {
-      nudge();
-      return;
-    }
-    post({ protocol: PROTOCOL, type: "close_request", sessionId });
-    clearTimeout(closeFallback);
-    closeFallback = window.setTimeout(() => {
-      if (!closed && dismissable) finish("user");
-    }, CLOSE_FALLBACK_MS);
-  };
-
-  const onKeydown = (event: KeyboardEvent) => {
-    if (event.key === "Escape") requestClose();
-  };
-  const onBeforeUnload = (event: BeforeUnloadEvent) => {
-    event.preventDefault();
-    event.returnValue = "";
-  };
-  // A backdrop dismissal must be a deliberate gesture: pointer down and up on
-  // the backdrop itself, and not during the entrance. The second click of a
-  // double-click on Buy lands here about 100ms after open(); it is not a
-  // request to close. Neither is a drag that starts in the panel and ends
-  // outside it.
-  backdrop.addEventListener("pointerdown", () => {
-    backdropPressed = performance.now() - openedAt > ENTRANCE_GRACE_MS;
-  });
-  backdrop.addEventListener("click", () => {
-    const deliberate = backdropPressed;
-    backdropPressed = false;
-    if (deliberate) requestClose();
-  });
-  document.addEventListener("keydown", onKeydown);
-  window.addEventListener("message", onMessage);
-
-  const loadTimer = window.setTimeout(() => {
-    if (ready || closed) return;
-    finish("error", () =>
-      callHost(options.onError, {
-        code: "load_failed",
-        message: "The checkout did not load. Check your connection and try again.",
-      }),
-    );
-  }, LOAD_TIMEOUT_MS);
-
-  // -- teardown --------------------------------------------------------------
-
-  /**
-   * Everything the host page can observe is restored synchronously, so a host
-   * that closes and immediately reopens gets a clean slate. Only the exit
-   * animation, the DOM removal and onClose are deferred.
-   */
-  function finish(reason: CloseReason, beforeClose?: () => void) {
-    if (closed) return;
-    closed = true;
-    clearTimeout(loadTimer);
-    clearTimeout(closeFallback);
-    window.removeEventListener("message", onMessage);
-    document.removeEventListener("keydown", onKeydown);
-    window.removeEventListener("beforeunload", onBeforeUnload);
-    root.classList.remove("is-open");
-    root.classList.add("is-exiting");
-    document.body.style.overflow = previousOverflow;
-    active = null;
-    previouslyFocused?.focus();
-    beforeClose?.();
-    window.setTimeout(() => {
-      host.remove();
-      callHost(options.onClose, { reason });
-    }, prefersReducedMotion() ? 0 : EXIT_MS);
-  }
-
-  // -- mount -----------------------------------------------------------------
-
-  document.body.style.overflow = "hidden";
-  document.body.appendChild(host);
-  frame.src = `${CHECKOUT_ORIGIN}/`;
-  requestAnimationFrame(() =>
-    requestAnimationFrame(() => {
-      if (!closed) root.classList.add("is-open");
-    }),
-  );
-
-  const handle: CheckoutHandle = Object.freeze({
-    sessionId,
-    close: () => finish("host"),
-  });
-
-  return { handle, focus: focusFrame };
+function withDefaults(options: OpenOptions): OpenOptions {
+  const merged: OpenOptions = { ...defaults, ...options };
+  if (defaults.theme || options.theme) merged.theme = { ...defaults.theme, ...options.theme };
+  if (defaults.merchant || options.merchant) merged.merchant = { ...defaults.merchant, ...options.merchant };
+  return merged;
 }
 
 // ---------------------------------------------------------------------------
@@ -637,3 +411,312 @@ const STYLES = `
   .panel.nudge { animation: none; }
 }
 `;
+
+// ---------------------------------------------------------------------------
+// Declarative use: attributes on the script tag, triggers on any element.
+// ---------------------------------------------------------------------------
+
+/** What the script tag itself declared, if anything. Computed here, after the validators above exist. */
+export const defaults: ScriptDefaults = typeof document === "undefined" ? {} : Object.freeze(readScriptDefaults());
+
+function readScriptDefaults(): ScriptDefaults {
+  const script = document.currentScript;
+  if (!(script instanceof HTMLScriptElement)) return {};
+  const d = script.dataset;
+  const out: ScriptDefaults = {};
+  if (d.layout === "drawer" || d.layout === "modal") out.layout = d.layout;
+  else if (d.layout !== undefined) warn('data-layout must be "drawer" or "modal".');
+  const theme: Theme = {};
+  if (d.accent !== undefined) theme.accent = d.accent;
+  if (d.radius !== undefined) theme.radius = d.radius as Radius;
+  if (d.font !== undefined) theme.font = d.font;
+  if (Object.keys(theme).length) out.theme = sanitizeTheme(theme, warn);
+  const merchant: Merchant = {};
+  if (d.merchantName !== undefined) merchant.name = d.merchantName;
+  if (d.merchantLogo !== undefined) merchant.logo = d.merchantLogo;
+  if (d.merchantSite !== undefined) merchant.site = d.merchantSite;
+  if (Object.keys(merchant).length) out.merchant = sanitizeMerchant(merchant, warn);
+  return out;
+}
+
+if (typeof document !== "undefined") {
+  // One delegated listener: elements added later work too, and a keyboard
+  // activation of a button arrives here as a click like any other.
+  document.addEventListener("click", (event) => {
+    const target = event.target instanceof Element ? event.target.closest<HTMLElement>("[data-dodo-product]") : null;
+    if (!target) return;
+    event.preventDefault();
+    const emit = (name: string, detail: unknown) => target.dispatchEvent(new CustomEvent(name, { detail, bubbles: true }));
+    const options: OpenOptions = {
+      productId: target.dataset.dodoProduct ?? "",
+      onSuccess: (e) => emit("dodo:success", e),
+      onClose: (e) => emit("dodo:close", e),
+      onError: (e) => emit("dodo:error", e),
+    };
+    const quantity = Number(target.dataset.dodoQuantity);
+    if (target.dataset.dodoQuantity !== undefined) options.quantity = quantity;
+    if (target.dataset.dodoLayout === "drawer" || target.dataset.dodoLayout === "modal") options.layout = target.dataset.dodoLayout;
+    if (target.dataset.dodoEmail !== undefined) options.customerEmail = target.dataset.dodoEmail;
+    try {
+      open(options);
+    } catch (error) {
+      // A misconfigured attribute must be loud for the developer and visible to the page.
+      console.error("[DodoCheckout]", error);
+      emit("dodo:error", { code: "invalid_options", message: error instanceof Error ? error.message : String(error) });
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
+
+function createSession(options: OpenOptions): { handle: CheckoutHandle; focus(): void } {
+  const sessionId = newSessionId();
+  const layout: Layout = options.layout ?? "drawer";
+  const theme = sanitizeTheme(options.theme, warn);
+  const merchant = sanitizeMerchant(options.merchant, warn);
+  const customerEmail = sanitizeEmail(options.customerEmail);
+
+  const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  const previousOverflow = document.body.style.overflow;
+
+  // Everything lives in a closed shadow root so host CSS cannot restyle the
+  // overlay and our styles cannot leak into the host page.
+  const host = document.createElement("div");
+  host.setAttribute("data-dodo-checkout", sessionId);
+  // The shadow root shields everything inside; the host element itself still
+  // lives in the page, so pin the few properties a global stylesheet could use
+  // to hide it or break position: fixed for its contents.
+  host.setAttribute(
+    "style",
+    "display:block!important;position:static!important;width:0!important;height:0!important;margin:0!important;padding:0!important;border:0!important;overflow:visible!important;visibility:visible!important;opacity:1!important;transform:none!important;filter:none!important;clip-path:none!important;contain:none!important;pointer-events:auto!important",
+  );
+  const shadow = host.attachShadow({ mode: "closed" });
+  shadow.innerHTML = `
+    <style>${STYLES}</style>
+    <div class="root" role="dialog" aria-modal="true" aria-label="Checkout">
+      <div class="backdrop"></div>
+      <div tabindex="0" class="sentinel" aria-hidden="true"></div>
+      <div class="panel ${layout}">
+        <div class="loading" aria-live="polite">
+          <div class="spinner"></div>
+          <div>Opening secure checkout</div>
+        </div>
+        <iframe class="frame" title="Secure checkout" referrerpolicy="strict-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"></iframe>
+      </div>
+      <div tabindex="0" class="sentinel" aria-hidden="true"></div>
+    </div>`;
+
+  const root = shadow.querySelector<HTMLElement>(".root")!;
+  const backdrop = shadow.querySelector<HTMLElement>(".backdrop")!;
+  const panel = shadow.querySelector<HTMLElement>(".panel")!;
+  const frame = shadow.querySelector<HTMLIFrameElement>(".frame")!;
+  const sentinels = shadow.querySelectorAll<HTMLElement>(".sentinel");
+
+  let closed = false;
+  let ready = false;
+  let dismissable = true;
+  let closeFallback = 0;
+  let succeeded = false;
+  let backdropPressed = false;
+  const openedAt = performance.now();
+
+  const focusFrame = () => frame.focus();
+  sentinels.forEach((s) => s.addEventListener("focus", focusFrame));
+
+  // -- host -> checkout ------------------------------------------------------
+
+  const post = (message: ToCheckout) => {
+    frame.contentWindow?.postMessage(message, CHECKOUT_ORIGIN);
+  };
+
+  const sendInit = () => {
+    const init: InitMessage = {
+      protocol: PROTOCOL,
+      type: "init",
+      sessionId,
+      productId: options.productId,
+      quantity: options.quantity ?? 1,
+      layout,
+      theme,
+      merchant,
+    };
+    if (customerEmail) init.customerEmail = customerEmail;
+    post(init);
+  };
+
+  // -- checkout -> host ------------------------------------------------------
+
+  const onMessage = (event: MessageEvent) => {
+    if (event.origin !== CHECKOUT_ORIGIN) return;
+    if (event.source !== frame.contentWindow) return;
+    const data = event.data as { [key: string]: unknown } | null;
+    if (!data || data.protocol !== PROTOCOL) return;
+
+    if (data.type === "ready") {
+      sendInit(); // idempotent: the checkout may announce itself more than once
+      return;
+    }
+    if (data.type === "init_rejected") {
+      finish("error", () =>
+        callHost(options.onError, {
+          code: "load_failed",
+          message: `The checkout cannot talk to this page: ${String(data.reason ?? "unknown reason")}`,
+        }),
+      );
+      return;
+    }
+    if (data.sessionId !== sessionId) return;
+    const message = data as unknown as FromCheckout;
+
+    switch (message.type) {
+      case "init_ok":
+        // Only now is the checkout really usable. Until here the load timer runs.
+        if (!ready) {
+          ready = true;
+          clearTimeout(loadTimer);
+          root.classList.add("is-ready");
+          focusFrame();
+        }
+        break;
+      case "resize":
+        if (typeof message.height === "number" && message.height > 0) {
+          panel.style.setProperty("--h", `${Math.ceil(message.height)}px`);
+        }
+        break;
+      case "dismissable":
+        // The checkout is alive and telling us its state; a pending fallback
+        // close would be acting on stale information.
+        dismissable = message.value === true;
+        clearTimeout(closeFallback);
+        // While a payment is in flight, leaving the page is the one thing that
+        // can lose the answer. Let the browser ask first.
+        if (dismissable) window.removeEventListener("beforeunload", onBeforeUnload);
+        else window.addEventListener("beforeunload", onBeforeUnload);
+        break;
+      case "nudge":
+        clearTimeout(closeFallback);
+        nudge();
+        break;
+      case "success":
+        // At most once per session, whatever the checkout does.
+        if (succeeded) break;
+        succeeded = true;
+        callHost(options.onSuccess, { sessionId });
+        break;
+      case "error":
+        if (succeeded) break; // nothing can go wrong after the money moved
+        if (typeof message.code === "string" && typeof message.message === "string") {
+          callHost(options.onError, { code: message.code, message: message.message });
+        }
+        break;
+      case "close":
+        finish(message.reason === "complete" || message.reason === "error" ? message.reason : "user");
+        break;
+    }
+  };
+
+  // -- dismissal -------------------------------------------------------------
+
+  const nudge = () => {
+    panel.classList.remove("nudge");
+    void panel.offsetWidth; // restart the animation
+    panel.classList.add("nudge");
+  };
+
+  // The customer asks to close. The checkout decides (it refuses mid-payment).
+  // If the checkout never answers, the SDK closes anyway rather than trap anyone.
+  const requestClose = () => {
+    if (closed) return;
+    if (!ready) {
+      finish("user");
+      return;
+    }
+    if (!dismissable) {
+      nudge();
+      return;
+    }
+    post({ protocol: PROTOCOL, type: "close_request", sessionId });
+    clearTimeout(closeFallback);
+    closeFallback = window.setTimeout(() => {
+      if (!closed && dismissable) finish("user");
+    }, CLOSE_FALLBACK_MS);
+  };
+
+  const onKeydown = (event: KeyboardEvent) => {
+    if (event.key === "Escape") requestClose();
+  };
+  const onBeforeUnload = (event: BeforeUnloadEvent) => {
+    event.preventDefault();
+    event.returnValue = "";
+  };
+  // A backdrop dismissal must be a deliberate gesture: pointer down and up on
+  // the backdrop itself, and not during the entrance. The second click of a
+  // double-click on Buy lands here about 100ms after open(); it is not a
+  // request to close. Neither is a drag that starts in the panel and ends
+  // outside it.
+  backdrop.addEventListener("pointerdown", () => {
+    backdropPressed = performance.now() - openedAt > ENTRANCE_GRACE_MS;
+  });
+  backdrop.addEventListener("click", () => {
+    const deliberate = backdropPressed;
+    backdropPressed = false;
+    if (deliberate) requestClose();
+  });
+  document.addEventListener("keydown", onKeydown);
+  window.addEventListener("message", onMessage);
+
+  const loadTimer = window.setTimeout(() => {
+    if (ready || closed) return;
+    finish("error", () =>
+      callHost(options.onError, {
+        code: "load_failed",
+        message: "The checkout did not load. Check your connection and try again.",
+      }),
+    );
+  }, LOAD_TIMEOUT_MS);
+
+  // -- teardown --------------------------------------------------------------
+
+  /**
+   * Everything the host page can observe is restored synchronously, so a host
+   * that closes and immediately reopens gets a clean slate. Only the exit
+   * animation, the DOM removal and onClose are deferred.
+   */
+  function finish(reason: CloseReason, beforeClose?: () => void) {
+    if (closed) return;
+    closed = true;
+    clearTimeout(loadTimer);
+    clearTimeout(closeFallback);
+    window.removeEventListener("message", onMessage);
+    document.removeEventListener("keydown", onKeydown);
+    window.removeEventListener("beforeunload", onBeforeUnload);
+    root.classList.remove("is-open");
+    root.classList.add("is-exiting");
+    document.body.style.overflow = previousOverflow;
+    active = null;
+    previouslyFocused?.focus();
+    beforeClose?.();
+    window.setTimeout(() => {
+      host.remove();
+      callHost(options.onClose, { reason });
+    }, prefersReducedMotion() ? 0 : EXIT_MS);
+  }
+
+  // -- mount -----------------------------------------------------------------
+
+  document.body.style.overflow = "hidden";
+  document.body.appendChild(host);
+  frame.src = `${CHECKOUT_ORIGIN}/`;
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      if (!closed) root.classList.add("is-open");
+    }),
+  );
+
+  const handle: CheckoutHandle = Object.freeze({
+    sessionId,
+    close: () => finish("host"),
+  });
+
+  return { handle, focus: focusFrame };
+}

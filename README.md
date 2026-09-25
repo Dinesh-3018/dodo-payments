@@ -4,7 +4,7 @@ A tiny embeddable checkout. A site adds one script, calls one function, and a ch
 
 The payment network is simulated inside the checkout: nothing is charged and no card data leaves the iframe. The copy is written as the real product would say it (the lock line, the bank wording), so the fake exercises the same states a real gateway would.
 
-- **Live demo:** https://dodo-checkout-demo-two.vercel.app (minimal embed: https://dodo-checkout-demo-two.vercel.app/minimal.html; requirement and edge-case coverage: https://dodo-checkout-demo-two.vercel.app/coverage.html)
+- **Live demo:** https://dodo-checkout-demo-two.vercel.app (minimal embed: https://dodo-checkout-demo-two.vercel.app/minimal.html; no-JS embed: https://dodo-checkout-demo-two.vercel.app/declarative.html; requirement and edge-case coverage: https://dodo-checkout-demo-two.vercel.app/coverage.html)
 - **Hosted checkout and SDK:** https://dodo-checkout-flame.vercel.app (script at `/sdk/dodo-checkout.js`)
 
 ## Embed it
@@ -23,7 +23,17 @@ Two tags on any page. Nothing to install, no framework, no build step on the hos
 </script>
 ```
 
-`apps/demo/minimal.html` is exactly that and nothing else: a plain HTML page with a Buy button and a log. The full demo store (`apps/demo/index.html`) is the same integration with a playground around it. The SDK source is one plain TypeScript file, `packages/sdk/src/index.ts`, with no dependencies; it builds to `dodo-checkout.js`, which the checkout app serves at `/sdk/dodo-checkout.js`.
+Or with no JavaScript at all. The script tag carries the defaults, and any element with `data-dodo-product` opens the checkout; the element receives `dodo:success`, `dodo:close` and `dodo:error` events with the same payloads.
+
+```html
+<script src="https://dodo-checkout-flame.vercel.app/sdk/dodo-checkout.js"
+        data-layout="modal" data-accent="#1d4ed8" data-merchant-name="Kestrel Supply Co."></script>
+<button data-dodo-product="prod_123" data-dodo-quantity="2">Buy 2 notebooks</button>
+```
+
+Script-tag attributes: `data-layout`, `data-accent`, `data-radius`, `data-font`, `data-merchant-name`, `data-merchant-logo`, `data-merchant-site`. Trigger attributes: `data-dodo-product` (required), `data-dodo-quantity`, `data-dodo-layout`, `data-dodo-email`. Explicit `open()` options always win over the tag's defaults, and both go through the same validation.
+
+`apps/demo/minimal.html` is the JavaScript version and nothing else: a plain HTML page with a Buy button and a log. `apps/demo/declarative.html` is the attribute version. The full demo store (`apps/demo/index.html`) is the same integration with a playground around it. The SDK source is one plain TypeScript file, `packages/sdk/src/index.ts`, with no dependencies; it builds to `dodo-checkout.js`, which the checkout app serves at `/sdk/dodo-checkout.js`.
 
 ## The position
 
@@ -64,6 +74,10 @@ pnpm dev
 The two apps run on different ports on purpose. That makes the iframe cross-origin locally, exactly as it is in production, so the isolation is real and not just claimed.
 
 `pnpm build` builds all three. `pnpm typecheck` checks all three.
+
+### How the edge cases are tested
+
+`pnpm dev`, then run the headless suite (Playwright driving the installed Chrome) against the two dev servers; it exercises every condition in the states table, including a real double-click, going offline before and after Pay, the bank challenge, three declines, the stock cap, a page that posts a crafted `init` straight to the iframe, a host stylesheet that tries to hide the overlay, reduced motion, and the brand reader with private, IPv6-mapped, DNS-rebound and redirecting targets plus a megabyte of pathological CSS. The two things a browser cannot check are the CSP header and the leave-page prompt: `curl -I https://dodo-checkout-flame.vercel.app/` shows the header, and reloading the page while a payment is in flight shows the prompt.
 
 ### Test cards
 

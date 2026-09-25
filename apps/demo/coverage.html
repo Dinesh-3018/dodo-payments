@@ -145,6 +145,7 @@
   <nav aria-label="Live links">
     <a href="https://dodo-checkout-demo-two.vercel.app">Live demo</a>
     <a href="https://dodo-checkout-demo-two.vercel.app/minimal.html">Minimal embed</a>
+    <a href="https://dodo-checkout-demo-two.vercel.app/declarative.html">No-JS embed</a>
     <a href="https://dodo-checkout-flame.vercel.app/sdk/dodo-checkout.js">The script</a>
   </nav>
 </div>
@@ -153,7 +154,7 @@
   <h1>What the brief asks for, and what the checkout does about it</h1>
   <p class="lede">Dodo Payments' front-end assignment: a tiny embeddable checkout. This page lists every requirement in the brief, every condition the build handles, and the few that need a backend to handle for real.</p>
   <div class="meta">
-    <span class="pill"><span class="dot"></span>60 browser checks passing</span>
+    <span class="pill"><span class="dot"></span>75 browser checks passing</span>
     <span class="pill"><span class="dot"></span>Live on Vercel, two origins</span>
     <span class="pill is-pending"><span class="dot"></span>Two items still yours to finish</span>
   </div>
@@ -202,6 +203,7 @@
     <table>
       <thead><tr><th>Condition</th><th>What happens</th><th></th></tr></thead>
       <tbody>
+        <tr><td class="c">Attributes on the script tag, triggers on any element</td><td class="h"><code>data-layout</code>, <code>data-accent</code> and the rest set defaults; <code>data-dodo-product</code> opens the checkout with no JavaScript; events report back.</td><td class="v"><span class="mark tested">Tested</span></td></tr>
         <tr><td class="c">Missing product id, or a callback that is not a function</td><td class="h">A TypeError before anything opens, so the mistake shows up in development.</td><td class="v"><span class="mark tested">Tested</span></td></tr>
         <tr><td class="c">Bad accent, radius, font, logo or site value</td><td class="h">Dropped with a console warning; the checkout still opens with defaults.</td><td class="v"><span class="mark built">Built</span></td></tr>
         <tr><td class="c">Second <code>open()</code> while one is open</td><td class="h">The same handle comes back and the open checkout is refocused.</td><td class="v"><span class="mark tested">Tested</span></td></tr>
@@ -278,7 +280,7 @@
         <tr><td class="c">A perk threshold is crossed</td><td class="h">The badge ticks, the track fills, confetti rains once. Nothing fires just because the panel opened.</td><td class="v"><span class="mark tested">Tested</span></td></tr>
         <tr><td class="c">Store passes a quantity</td><td class="h">Validated (1 to 99) and re-validated in the checkout.</td><td class="v"><span class="mark tested">Tested</span></td></tr>
         <tr><td class="c">Brand read from the host page, or from a store URL</td><td class="h">Accent, name and logo from the page's own signals; explicit values win; bare domains accepted; a live preview shows what was read.</td><td class="v"><span class="mark tested">Tested</span></td></tr>
-        <tr><td class="c">Hostile URLs sent to the brand reader</td><td class="h">Redirect hops checked, names resolved and refused if private, IPv6 and private ranges refused, size and time caps, 30 lookups a minute per caller.</td><td class="v"><span class="mark built">Built</span></td></tr>
+        <tr><td class="c">Hostile URLs sent to the brand reader</td><td class="h">Private IPv4, IPv6-mapped loopback, a hostname resolving to a private address, a redirect that hops to one, a megabyte of pathological CSS, and 30-plus lookups in a minute: each refused or bounded.</td><td class="v"><span class="mark tested">Tested</span></td></tr>
       </tbody>
     </table>
   </div>
@@ -288,10 +290,10 @@
     <table>
       <thead><tr><th>Condition</th><th>What happens</th><th></th></tr></thead>
       <tbody>
-        <tr><td class="c">A page talks to the iframe without the SDK</td><td class="h">Every message is checked for origin, source, protocol and session; the checkout re-validates all of init.</td><td class="v"><span class="mark built">Built</span></td></tr>
-        <tr><td class="c">Host CSS or scripts reach for the overlay</td><td class="h">A closed shadow root; the checkout origin ships a Content-Security-Policy.</td><td class="v"><span class="mark built">Built</span></td></tr>
+        <tr><td class="c">A page talks to the iframe without the SDK</td><td class="h">Every message is checked for origin, source, protocol and session; the checkout re-validates all of init. A crafted init with a CSS <code>url()</code> accent, a script-injecting name and a <code>javascript:</code> logo is stripped; a close with the wrong session id is ignored.</td><td class="v"><span class="mark tested">Tested</span></td></tr>
+        <tr><td class="c">Host CSS or scripts reach for the overlay</td><td class="h">A closed shadow root, and the host element's display, position and visibility pinned inline, so a global <code>display: none !important</code> cannot blank it. The checkout origin ships a Content-Security-Policy (check with <code>curl -I</code>).</td><td class="v"><span class="mark tested">Tested</span></td></tr>
         <tr><td class="c">Drawer, modal, phone sheet, tall panels</td><td class="h">A floating drawer on desktop, a bottom sheet on phones, the pay button docked, actions pinned in state cards.</td><td class="v"><span class="mark tested">Tested</span></td></tr>
-        <tr><td class="c">Reduced motion</td><td class="h">No slides, no confetti, instant states.</td><td class="v"><span class="mark built">Built</span></td></tr>
+        <tr><td class="c">Reduced motion</td><td class="h">No slides, no confetti, instant states.</td><td class="v"><span class="mark tested">Tested</span></td></tr>
       </tbody>
     </table>
   </div>

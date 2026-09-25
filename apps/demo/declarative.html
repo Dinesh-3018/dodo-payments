@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Declarative embed</title>
+    <link rel="icon" href="/logo.svg" type="image/svg+xml" />
+    <style>
+      body { font-family: system-ui, -apple-system, sans-serif; max-width: 560px; margin: 56px auto; padding: 0 20px; color: #0a0a0a; line-height: 1.5; }
+      h1 { font-size: 22px; margin: 0 0 4px; }
+      p { color: #555; margin: 0 0 20px; }
+      button { font: inherit; font-weight: 500; padding: 12px 22px; border-radius: 999px; border: 0; background: #1d4ed8; color: #fff; cursor: pointer; }
+      pre { margin-top: 24px; background: #f5f5f5; padding: 16px; border-radius: 12px; font-size: 13px; white-space: pre-wrap; }
+      a { color: inherit; }
+    </style>
+    <!-- The script tag carries the defaults. No JavaScript is written on this page to open the checkout. -->
+    <script
+      src="%VITE_CHECKOUT_ORIGIN%/sdk/dodo-checkout.js"
+      data-layout="modal"
+      data-accent="#1d4ed8"
+      data-merchant-name="Kestrel Supply Co."
+    ></script>
+  </head>
+  <body>
+    <h1>Field Notebook, pack of 3 &middot; $18.00</h1>
+    <p>No JavaScript integration at all: the script tag holds the defaults, and any element with <code>data-dodo-product</code> opens the checkout. <a href="/">Back to the full demo store.</a></p>
+    <button type="button" data-dodo-product="prod_123" data-dodo-quantity="2">Buy 2 notebooks</button>
+    <pre id="log">Events will appear here.</pre>
+
+    <!-- The only script on the page, and it just writes the log. Events bubble, so document is enough. -->
+    <script>
+      ["dodo:success", "dodo:close", "dodo:error"].forEach(function (name) {
+        document.addEventListener(name, function (e) {
+          document.getElementById("log").textContent += "\n" + name + "  " + JSON.stringify(e.detail);
+        });
+      });
+    </script>
+  </body>
+</html>

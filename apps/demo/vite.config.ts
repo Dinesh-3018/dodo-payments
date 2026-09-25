@@ -10,6 +10,7 @@ export default defineConfig({
         main: fileURLToPath(new URL("./index.html", import.meta.url)),
         minimal: fileURLToPath(new URL("./minimal.html", import.meta.url)),
         coverage: fileURLToPath(new URL("./coverage.html", import.meta.url)),
+        declarative: fileURLToPath(new URL("./declarative.html", import.meta.url)),
       },
     },
   },
