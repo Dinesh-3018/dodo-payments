@@ -5,7 +5,6 @@ A small checkout any website can embed. Add one script, call one function, and t
 - Live demo: https://dodo-checkout-demo-two.vercel.app
 - Minimal embed (one script tag, one call): https://dodo-checkout-demo-two.vercel.app/minimal.html
 - No-JS embed (attributes only): https://dodo-checkout-demo-two.vercel.app/declarative.html
-- Every requirement and edge case, and how each is tested: https://dodo-checkout-demo-two.vercel.app/coverage.html
 - The hosted checkout and the script: https://dodo-checkout-flame.vercel.app/sdk/dodo-checkout.js
 
 The payment is faked inside the checkout. Nothing is charged. The copy is written the way the real thing would say it, so the fake goes through the same states a real gateway would.
@@ -113,7 +112,7 @@ The checkout does not trust the host either. A page can skip the script and post
 
 ## States
 
-Loading, unknown product, a page the checkout cannot talk to, invalid fields, offline before pay, processing, slow processing, declined, declined three times, transient failure, bank check, connection lost after the charge, unconfirmed, leaving the page mid-payment, fewer units left than asked for, left open for twenty minutes, success, close and reopen, host close, reduced motion. Each one has its own copy and its own test. The full table, with what the customer sees and what the host hears, is on the coverage page linked at the top.
+Loading, unknown product, a page the checkout cannot talk to, invalid fields, offline before pay, processing, slow processing, declined, declined three times, transient failure, bank check, connection lost after the charge, unconfirmed, leaving the page mid-payment, fewer units left than asked for, left open for twenty minutes, success, close and reopen, host close, reduced motion. Each one has its own copy, tells the host something true, and has a test in `tests/e2e.mjs`.
 
 ## Two decisions I went back and forth on
 
