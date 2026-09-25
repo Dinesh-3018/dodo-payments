@@ -8,6 +8,16 @@ interface Props {
   currency: string;
 }
 
+/**
+ * The track is drawn from the first badge centre to the last, so a fill of
+ * (i + 0.5) / n (the centre of segment i) maps to a point i / (n - 1) along it.
+ */
+function trackPercent(fill: number, n: number): number {
+  if (n <= 1) return fill >= 0.5 ? 100 : 0;
+  const segments = fill * n - 0.5; // 0 at the first badge, n - 1 at the last
+  return Math.min(100, Math.max(0, (segments / (n - 1)) * 100));
+}
+
 export function PerksBar({ perks, progress, currency }: Props) {
   const previous = useRef(progress.unlocked);
   const justUnlocked = progress.unlocked > previous.current ? progress.unlocked - 1 : -1;
@@ -17,10 +27,10 @@ export function PerksBar({ perks, progress, currency }: Props) {
 
   return (
     <div className="perks" aria-label="Order perks">
-      <div className="perks-track" aria-hidden="true">
-        <div className="perks-fill" style={{ width: `${progress.fill * 100}%` }} />
-      </div>
       <ol className="perks-list">
+        <div className="perks-track" aria-hidden="true">
+          <div className="perks-fill" style={{ width: `${trackPercent(progress.fill, perks.length)}%` }} />
+        </div>
         {perks.map((perk, i) => {
           const unlocked = i < progress.unlocked;
           return (
