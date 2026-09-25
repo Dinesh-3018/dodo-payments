@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { ChargeFailure } from "../gateway";
-import { AlertIcon, WifiOffIcon } from "./icons";
+import type { CardBrand } from "../card";
+import { AlertIcon, CardBrandIcon, WifiOffIcon } from "./icons";
 
 export interface Failure {
   code: ChargeFailure;
@@ -42,28 +43,39 @@ export function failureFor(code: ChargeFailure): Failure {
 interface Props {
   failure: Failure;
   amount: string;
+  brand: CardBrand;
+  last4: string;
   onRetry: () => void;
   onChangeCard: () => void;
 }
 
-export function FailedScreen({ failure, amount, onRetry, onChangeCard }: Props) {
+export function FailedScreen({ failure, amount, brand, last4, onRetry, onChangeCard }: Props) {
   const primary = useRef<HTMLButtonElement>(null);
   useEffect(() => primary.current?.focus(), []);
   return (
     <div className="state" role="alert">
-      <div className="state-icon is-danger">{failure.code === "offline" ? <WifiOffIcon /> : <AlertIcon />}</div>
-      <h2 className="state-title">{failure.title}</h2>
-      <p className="state-body">{failure.body}</p>
-      <p className="chip">
-        <span className="chip-dot" aria-hidden="true" />
-        No money has been taken
-      </p>
-      <dl className="receipt receipt-compact">
-        <div className="receipt-line">
-          <dt>Amount</dt>
-          <dd className="num">{amount}</dd>
-        </div>
-      </dl>
+      <div className="state-main">
+        <div className="state-icon is-danger">{failure.code === "offline" ? <WifiOffIcon /> : <AlertIcon />}</div>
+        <h2 className="state-title">{failure.title}</h2>
+        <p className="state-body">{failure.body}</p>
+        <p className="chip">
+          <span className="chip-dot" aria-hidden="true" />
+          No money has been taken
+        </p>
+        <dl className="receipt receipt-compact">
+          <div className="receipt-line">
+            <dt>Card</dt>
+            <dd className="receipt-card">
+              <CardBrandIcon brand={brand} />
+              <span className="num">•••• {last4}</span>
+            </dd>
+          </div>
+          <div className="receipt-line">
+            <dt>Amount</dt>
+            <dd className="num">{amount}</dd>
+          </div>
+        </dl>
+      </div>
       <div className="state-actions">
         <button ref={primary} type="button" className="pay" onClick={onRetry}>
           {failure.primary}

@@ -27,6 +27,7 @@ export function SuccessScreen({ amount, merchantName, email, brand, last4, onDon
 
   return (
     <div className="state" role="status">
+      <div className="state-main">
       <div className="state-icon is-success">
         <svg width="36" height="36" viewBox="0 0 36 36" fill="none" aria-hidden="true">
           <circle className="check-ring" cx="18" cy="18" r="16" stroke="currentColor" strokeWidth="2.5" />
@@ -56,9 +57,12 @@ export function SuccessScreen({ amount, merchantName, email, brand, last4, onDon
           <dd className="receipt-email">{email}</dd>
         </div>
       </dl>
-      <button ref={done} type="button" className="pay" onClick={onDone}>
-        Done
-      </button>
+      </div>
+      <div className="state-actions">
+        <button ref={done} type="button" className="pay" onClick={onDone}>
+          Done
+        </button>
+      </div>
     </div>
   );
 }

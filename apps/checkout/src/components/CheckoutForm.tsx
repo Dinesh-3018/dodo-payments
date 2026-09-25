@@ -234,6 +234,12 @@ export function CheckoutForm({ values, onChange, total, merchantName, processing
 
       </section>
 
+      <p className="secure">
+        <LockIcon />
+        <span>
+          Card details are encrypted and go straight to Dodo. {merchantName} never sees them.
+        </span>
+      </p>
       <p className="terms">
         By paying you agree to Dodo's{" "}
         <a href="https://dodopayments.com/terms" target="_blank" rel="noreferrer">
@@ -263,12 +269,6 @@ export function CheckoutForm({ values, onChange, total, merchantName, processing
             <span>Pay {total}</span>
           )}
         </button>
-        <p className="secure">
-          <LockIcon />
-          <span>
-            Card details are encrypted and go straight to Dodo. {merchantName} never sees them.
-          </span>
-        </p>
       </div>
     </form>
   );

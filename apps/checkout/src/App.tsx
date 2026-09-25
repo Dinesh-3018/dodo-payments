@@ -203,6 +203,8 @@ export function App() {
             <FailedScreen
               failure={phase.failure}
               amount={totalLabel}
+              brand={detectBrand(form.number)}
+              last4={form.number.slice(-4)}
               onRetry={() => void pay(form)}
               onChangeCard={() => {
                 setForm((f) => ({ ...f, number: "", expiry: "", cvc: "" }));
