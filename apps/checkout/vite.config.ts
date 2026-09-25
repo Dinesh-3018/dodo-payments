@@ -35,7 +35,7 @@ function brandApi(): Plugin {
     const url = new URL(req.url ?? "/", "http://localhost").searchParams.get("url");
     // Loopback targets (the demo on localhost) only for our own pages; public sites for anyone.
     const trusted = !origin || SELF.includes(origin);
-    const { status, body } = await handleBrandRequest(url, { allowLoopback: trusted });
+    const { status, body } = await handleBrandRequest(url, { allowLoopback: trusted, caller: req.socket.remoteAddress ?? "local" });
     res.writeHead(status, brandResponseHeaders);
     res.end(JSON.stringify(body));
   };

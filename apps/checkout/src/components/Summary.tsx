@@ -1,5 +1,5 @@
 import type { Perk, PerkProgress, Product } from "../catalog";
-import { MAX_QUANTITY } from "../catalog";
+import { maxQuantity } from "../catalog";
 import { formatMoney } from "../money";
 import { ProductArt } from "./art";
 import { PerksBar } from "./PerksBar";
@@ -15,6 +15,7 @@ interface Props {
 
 export function Summary({ product, quantity, onQuantityChange, perks, progress, disabled }: Props) {
   const total = formatMoney(product.amount * quantity, product.currency);
+  const max = maxQuantity(product);
   return (
     <section className="card summary" aria-label="Your order">
       <p className="eyebrow">Your order</p>
@@ -42,11 +43,12 @@ export function Summary({ product, quantity, onQuantityChange, perks, progress, 
               type="button"
               className="stepper-btn"
               onClick={() => onQuantityChange(quantity + 1)}
-              disabled={disabled || quantity >= MAX_QUANTITY}
+              disabled={disabled || quantity >= max}
               aria-label="Increase quantity"
             >
               +
             </button>
+            {quantity >= max && product.stock <= max && <span className="stepper-note">Only {product.stock} left</span>}
           </div>
         </div>
         <div className="product-price num">{total}</div>

@@ -4,6 +4,21 @@ const CACHE_TTL_MS = 60 * 60 * 1000;
 const CACHE_MAX = 500;
 const cache = new Map<string, { at: number; body: BrandResponse }>();
 
+const RATE_WINDOW_MS = 60_000;
+const RATE_LIMIT = 30;
+const RATE_KEYS_MAX = 5000;
+const hits = new Map<string, number[]>();
+
+/** Best effort per caller: this is per instance, which is what a serverless function can promise. */
+function rateLimited(key: string): boolean {
+  const now = Date.now();
+  const recent = (hits.get(key) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
+  recent.push(now);
+  if (hits.size >= RATE_KEYS_MAX && !hits.has(key)) hits.delete(hits.keys().next().value as string);
+  hits.set(key, recent);
+  return recent.length > RATE_LIMIT;
+}
+
 export type BrandResponse = { ok: true; brand: Brand } | { ok: false; code: string; message: string };
 
 /**
@@ -13,9 +28,12 @@ export type BrandResponse = { ok: true; brand: Brand } | { ok: false; code: stri
  */
 export async function handleBrandRequest(
   target: string | null,
-  options: { allowLoopback: boolean },
+  options: { allowLoopback: boolean; caller: string },
 ): Promise<{ status: number; body: BrandResponse }> {
   if (!target) return { status: 400, body: { ok: false, code: "invalid_url", message: "Missing url parameter." } };
+  if (rateLimited(options.caller)) {
+    return { status: 429, body: { ok: false, code: "rate_limited", message: "Too many lookups from this address. Try again in a minute." } };
+  }
 
   const key = cacheKey(target);
   const cached = key ? cache.get(key) : undefined;

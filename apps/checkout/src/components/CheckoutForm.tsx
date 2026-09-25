@@ -50,6 +50,8 @@ interface Props {
   total: string;
   merchantName: string;
   processing: boolean;
+  /** The charge was sent and the connection dropped; we are waiting for it to return. */
+  waitingForNetwork: boolean;
   initialFocus: Key;
   /** The host pre-filled the email: show it as a line, not a field, until the buyer asks to change it. */
   emailPrefilled: boolean;
@@ -61,7 +63,7 @@ function shouldAutofocus(): boolean {
   return matchMedia("(pointer: fine)").matches || window.innerWidth > 640;
 }
 
-export function CheckoutForm({ values, onChange, total, merchantName, processing, initialFocus, emailPrefilled, onPay }: Props) {
+export function CheckoutForm({ values, onChange, total, merchantName, processing, waitingForNetwork, initialFocus, emailPrefilled, onPay }: Props) {
   const [touched, setTouched] = useState<Partial<Record<Key, boolean>>>({});
   const [submitted, setSubmitted] = useState(false);
   const [editingEmail, setEditingEmail] = useState(!emailPrefilled);
@@ -86,11 +88,13 @@ export function CheckoutForm({ values, onChange, total, merchantName, processing
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingEmail]);
 
-  const stage = useProcessingCopy(processing);
+  const stage = useProcessingCopy(processing, waitingForNetwork);
+  const online = useOnline();
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (processing) return; // a second Enter or click while paying is absorbed here
+    if (!online) return; // the notice above the button says why
     setSubmitted(true);
     const first = ORDER.find((key) => errors[key]);
     if (first) {
@@ -253,11 +257,16 @@ export function CheckoutForm({ values, onChange, total, merchantName, processing
       </p>
 
       <div className="dock">
+        {!online && !processing && (
+          <p className="notice" role="status">
+            You're offline. Pay when you're back online; nothing has been sent.
+          </p>
+        )}
         <button
           type="submit"
-          className={"pay" + (processing ? " is-busy" : "")}
+          className={"pay" + (processing ? " is-busy" : "") + (!online && !processing ? " is-held" : "")}
           aria-busy={processing}
-          aria-disabled={processing}
+          aria-disabled={processing || !online}
           aria-live="polite"
         >
           {processing ? (
@@ -302,7 +311,7 @@ function Field({ id, label, error, hint, children }: { id: string; label: string
 }
 
 /** Every spinner says what it is doing, and says something new if it takes long. */
-function useProcessingCopy(processing: boolean): string {
+function useProcessingCopy(processing: boolean, waitingForNetwork: boolean): string {
   const [slow, setSlow] = useState(false);
   useEffect(() => {
     if (!processing) {
@@ -312,5 +321,21 @@ function useProcessingCopy(processing: boolean): string {
     const timer = setTimeout(() => setSlow(true), 4000);
     return () => clearTimeout(timer);
   }, [processing]);
+  if (waitingForNetwork) return "Connection lost, waiting for it";
   return slow ? "Still confirming, hang on" : "Confirming payment";
+}
+
+function useOnline(): boolean {
+  const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine !== false);
+  useEffect(() => {
+    const up = () => setOnline(true);
+    const down = () => setOnline(false);
+    window.addEventListener("online", up);
+    window.addEventListener("offline", down);
+    return () => {
+      window.removeEventListener("online", up);
+      window.removeEventListener("offline", down);
+    };
+  }, []);
+  return online;
 }

@@ -36,6 +36,9 @@ export type ErrorCode =
   | "product_not_found" // unknown productId; terminal
   | "payment_declined" // the bank said no; the customer can retry
   | "payment_failed" // a transient failure; the customer can retry
+  | "authentication_failed" // the bank's extra check was declined or abandoned; the customer can retry
+  | "insufficient_stock" // fewer units left than asked for; the customer can lower the quantity
+  | "payment_unconfirmed" // the charge was sent but the connection dropped before the answer; outcome unknown
   | "offline"; // no connection when paying; the customer can retry
 
 export interface Theme {
@@ -263,6 +266,10 @@ function createSession(options: OpenOptions): { handle: CheckoutHandle; focus():
         // close would be acting on stale information.
         dismissable = message.value === true;
         clearTimeout(closeFallback);
+        // While a payment is in flight, leaving the page is the one thing that
+        // can lose the answer. Let the browser ask first.
+        if (dismissable) window.removeEventListener("beforeunload", onBeforeUnload);
+        else window.addEventListener("beforeunload", onBeforeUnload);
         break;
       case "nudge":
         clearTimeout(closeFallback);
@@ -316,6 +323,10 @@ function createSession(options: OpenOptions): { handle: CheckoutHandle; focus():
   const onKeydown = (event: KeyboardEvent) => {
     if (event.key === "Escape") requestClose();
   };
+  const onBeforeUnload = (event: BeforeUnloadEvent) => {
+    event.preventDefault();
+    event.returnValue = "";
+  };
   // A backdrop dismissal must be a deliberate gesture: pointer down and up on
   // the backdrop itself, and not during the entrance. The second click of a
   // double-click on Buy lands here about 100ms after open(); it is not a
@@ -356,6 +367,7 @@ function createSession(options: OpenOptions): { handle: CheckoutHandle; focus():
     clearTimeout(closeFallback);
     window.removeEventListener("message", onMessage);
     document.removeEventListener("keydown", onKeydown);
+    window.removeEventListener("beforeunload", onBeforeUnload);
     root.classList.remove("is-open");
     root.classList.add("is-exiting");
     document.body.style.overflow = previousOverflow;

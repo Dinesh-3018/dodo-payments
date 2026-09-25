@@ -71,9 +71,10 @@ The two apps run on different ports on purpose. That makes the iframe cross-orig
 |---|---|
 | 4242 4242 4242 4242 | succeeds |
 | 4000 0000 0000 0002 | declined by the bank |
-| 4000 0000 0000 0341 | fails once, succeeds on retry |
+| 4000 0000 0000 0341 | fails once (slowly), succeeds on retry |
+| 4000 0000 0000 3220 | the bank asks for an extra check (a stand-in for 3-D Secure); approve or decline it |
 
-Any other Luhn-valid number succeeds. Expiry must be in the future. To see the offline state, open the checkout, set DevTools Network to Offline, and press Pay.
+Any other Luhn-valid number succeeds. Expiry must be in the future. To see the offline states, set DevTools Network to Offline either before pressing Pay (nothing is sent, the button is held) or right after (the charge is out, the checkout waits for the connection and never guesses). The notebook has 8 in stock; the stepper stops there and the pay step re-checks it.
 
 ## How the pieces talk
 
@@ -136,7 +137,7 @@ DodoCheckout.open({
 
 If you pass nothing, the checkout reads the store's accent colour, name and logo from the page it was opened on (`/api/brand` fetches the public homepage and looks at `theme-color`, brand CSS variables, button colours, `og:site_name` and the touch icon). `merchant.site` points it at another URL. Explicit values always win. The pay button text picks white or near-black automatically so a lime accent stays legible.
 
-That fetcher runs on behalf of anyone, so it is written for hostile input: every redirect hop is re-validated, IPv6 literals and private IPv4 ranges are refused, bodies are size-capped, requests are time-capped, the CSS scanners are linear, the cache is bounded, and the function has a 10 s ceiling. What it does not do: DNS rebinding checks or rate limiting. Both are on the list below.
+That fetcher runs on behalf of anyone, so it is written for hostile input: every redirect hop is re-validated, hostnames are resolved and refused if they point at a private address, IPv6 literals and private IPv4 ranges are refused, bodies are size-capped, requests are time-capped, the CSS scanners are linear, the cache is bounded, each caller gets 30 lookups a minute, and the function has a 10 s ceiling. The limits are per instance, which is what a serverless function can promise on its own.
 
 Not on the list, on purpose: custom CSS, copy, field order, the pay button label, the lock line. Those are the trust cues, and a host must not be able to remove them.
 
@@ -168,9 +169,15 @@ Not on the list, on purpose: custom CSS, copy, field order, the pay button label
 | Unknown product | "We couldn't find that product", Close | `onError(product_not_found)` then `onClose(error)` |
 | Invalid field | specific message under the field, on blur or on submit, focus moves to the first problem | nothing |
 | Processing | button spinner + "Confirming payment", then "Still confirming, hang on" after 4 s (the flaky test card's first attempt takes 5 s, so you can see it), dismissal blocked | nothing |
-| Declined | failure screen, Try again / Use a different card | `onError(payment_declined)` |
-| Transient failure | failure screen, Try again | `onError(payment_failed)` |
-| Offline at pay time | failure screen "You're offline", Try again | `onError(offline)` |
+| Declined | failure card with the card and amount, Try again / Use a different card | `onError(payment_declined)` |
+| Declined three times | "This card keeps getting declined", only Use a different card | `onError(payment_declined)` |
+| Transient failure | failure card, Try again | `onError(payment_failed)` |
+| Bank asks for an extra check | a stand-in for the bank's page with Approve and Decline; closing it counts as declining | `onError(authentication_failed)` on decline |
+| Offline before Pay | notice above the button, Pay held, nothing sent | nothing |
+| Connection drops after the charge was sent | "Connection lost, waiting for it"; after 12 s an "unconfirmed" card that says don't pay again; the result appears the moment the connection returns | `onError(payment_unconfirmed)` only if the customer closes before the answer |
+| Leaving the page mid-payment | the browser's own "leave this page?" prompt, armed only while a payment is in flight | nothing (the page is gone) |
+| Fewer units left than asked for | "Only 8 left" on the stepper; if it slips through, a failure card with "Pay for 8" | `onError(insufficient_stock)` |
+| Left open for 20 minutes | "This checkout timed out", card details cleared, Start again | nothing |
 | Success | check mark, confetti, amount, masked card, Done | `onSuccess` then `onClose(complete)` |
 | Escape / backdrop / X | closes when idle; nudges and announces when processing; if the checkout never answers a close request, the SDK closes anyway after 1.5 s | `onClose(user)` |
 | Double-click on Buy | one checkout opens and stays open; the second click is absorbed | one `open()`, one session |
@@ -192,11 +199,11 @@ Other calls I considered and settled quickly: three callbacks rather than an eve
 ## What I'd explore next
 
 - **Real card isolation per field.** Today the card lives in one iframe. Stripe-style per-field iframes would keep the number, expiry and CVC in separate documents.
-- **3DS / bank challenge.** A named interstitial ("Redirecting to your bank, don't press back") and a return path with the same session id.
 - **Express row.** Apple Pay and Google Pay above the form with an "or" divider, following Apple's rule that the button is never smaller than the others.
-- **Idempotency and webhooks.** `sessionId` as an idempotency key and a server-side webhook so the host does not need to trust the browser callback.
+- **Idempotency and webhooks.** `sessionId` as an idempotency key and a server-side webhook so the host does not need to trust the browser callback, and so an "unconfirmed" payment can be resolved after the page is gone.
+- **A real bank challenge.** The stand-in shows the state and the copy; the real thing is the bank's iframe and a return path keyed by session id.
 - **Caret-preserving formatting** when editing the middle of the card number. Backspace over a separator already removes the right digit, but the caret still jumps to the end.
-- **Rate limiting and DNS-level checks** on `/api/brand`, and a real renderer for sites whose colours only exist in JavaScript.
+- **A real renderer** for the brand reader, for sites whose colours only exist in JavaScript. Rate limiting and DNS checks are in, but per instance; a shared store would make them global.
 - **Unit tests** for the card utilities and the message guards, and this end-to-end run as a CI job.
 - **Dark surfaces, RTL and localised currency** once there is a second locale to test against.
 

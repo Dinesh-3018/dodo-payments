@@ -8,6 +8,8 @@ export interface Product {
   amount: number;
   currency: string;
   art: Art;
+  /** Units available right now. Checked again when paying, as a real backend would. */
+  stock: number;
 }
 
 const CATALOG: Record<string, Product> = {
@@ -18,6 +20,7 @@ const CATALOG: Record<string, Product> = {
     amount: 1800,
     currency: "USD",
     art: "notebook",
+    stock: 8,
   },
   prod_456: {
     id: "prod_456",
@@ -26,6 +29,7 @@ const CATALOG: Record<string, Product> = {
     amount: 4200,
     currency: "USD",
     art: "mat",
+    stock: 3,
   },
 };
 
@@ -51,6 +55,10 @@ export const STORE_PERKS: Perk[] = [
 ];
 
 export const MAX_QUANTITY = 10;
+
+export function maxQuantity(product: Product): number {
+  return Math.max(1, Math.min(MAX_QUANTITY, product.stock));
+}
 
 export interface PerkProgress {
   unlocked: number;

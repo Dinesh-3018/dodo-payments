@@ -263,6 +263,11 @@ body.layout-drawer .body {
   font-size: 14px;
   font-weight: 500;
 }
+.stepper-note {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
 
 /* ---- perks ------------------------------------------------------------ */
 
@@ -586,6 +591,20 @@ body.layout-drawer .body {
 .pay.is-busy {
   cursor: progress;
 }
+.pay.is-held {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.notice {
+  margin: 0 0 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
+  font-size: 13px;
+  color: var(--ink-2);
+  text-align: center;
+}
 .secondary {
   background: var(--fill);
   color: var(--ink);
@@ -737,6 +756,18 @@ body.layout-drawer .body {
   align-items: center;
   gap: 6px;
   color: var(--success);
+}
+.rows .is-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-2);
+}
+.spinner-ink {
+  width: 14px;
+  height: 14px;
+  border-color: #d4d4d4;
+  border-top-color: var(--ink);
 }
 .num {
   font-variant-numeric: tabular-nums;

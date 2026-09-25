@@ -12,6 +12,8 @@
  * time-capped, and every scanner over fetched bytes is linear.
  */
 
+import { lookup } from "node:dns/promises";
+
 export interface Brand {
   accent?: string;
   name?: string;
@@ -119,10 +121,43 @@ function cleanUrl(url: URL): URL {
   return url;
 }
 
-function assertAllowed(url: URL, allowLoopback: boolean) {
+async function assertAllowed(url: URL, allowLoopback: boolean) {
   const host = url.hostname.toLowerCase();
   if (allowLoopback && (host === "localhost" || host === "127.0.0.1")) return;
   if (isPrivateHost(host)) throw new BrandError("blocked_host", "Local and private addresses are not read.");
+  // A public name that resolves to a private address is the classic way
+  // around a hostname check. Resolve first, then decide.
+  if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
+    let addresses: Array<{ address: string; family: number }>;
+    try {
+      addresses = await lookup(host, { all: true });
+    } catch {
+      throw new BrandError("fetch_failed", `Could not resolve ${host}.`);
+    }
+    if (addresses.length === 0 || addresses.some((a) => isPrivateAddress(a.address))) {
+      throw new BrandError("blocked_host", "Local and private addresses are not read.");
+    }
+  }
+}
+
+/** True for loopback, link-local, private and mapped-private addresses, v4 or v6. */
+export function isPrivateAddress(address: string): boolean {
+  const ip = address.toLowerCase();
+  if (ip.includes(":")) {
+    const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(ip);
+    if (mapped) return isPrivateHost(mapped[1]!);
+    const hexMapped = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(ip);
+    if (hexMapped) {
+      const hi = parseInt(hexMapped[1]!, 16);
+      const lo = parseInt(hexMapped[2]!, 16);
+      return isPrivateHost(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`);
+    }
+    if (ip === "::1" || ip === "::") return true;
+    if (/^f[cd]/.test(ip)) return true; // fc00::/7 unique local
+    if (/^fe[89ab]/.test(ip)) return true; // fe80::/10 link local
+    return false;
+  }
+  return isPrivateHost(ip);
 }
 
 /** Conservative: any IPv6 literal, any private or special IPv4 range, any local name. */
@@ -158,7 +193,7 @@ async function fetchChecked(
 ): Promise<{ ok: boolean; text: string; finalUrl: string }> {
   let current = cleanUrl(new URL(start.href));
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    assertAllowed(current, allowLoopback);
+    await assertAllowed(current, allowLoopback);
     const response = await doFetch(current.href, {
       redirect: "manual",
       signal: AbortSignal.timeout(TIMEOUT_MS),

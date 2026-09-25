@@ -30,14 +30,25 @@ export function Skeleton({ label }: { label: string }) {
   );
 }
 
-export function ProblemScreen({ title, body, onClose }: { title: string; body: string; onClose: () => void }) {
+interface ProblemProps {
+  title: string;
+  body: string;
+  /** Right-hand value of the Status row. Defaults to "Nothing charged". */
+  status?: { label: string; ok: boolean };
+  primary: { label: string; onClick: () => void };
+  secondary?: { label: string; onClick: () => void };
+  icon?: "danger" | "neutral";
+}
+
+export function ProblemScreen({ title, body, status, primary, secondary, icon = "danger" }: ProblemProps) {
   const button = useRef<HTMLButtonElement>(null);
   useEffect(() => button.current?.focus(), []);
+  const line = status ?? { label: "Nothing charged", ok: true };
   return (
     <div className="state" role="alert">
       <section className="card state-card">
         <div className="state-head">
-          <div className="state-icon is-danger">
+          <div className={"state-icon " + (icon === "danger" ? "is-danger" : "is-neutral")}>
             <AlertIcon />
           </div>
           <div className="state-text">
@@ -48,17 +59,22 @@ export function ProblemScreen({ title, body, onClose }: { title: string; body: s
         <dl className="rows">
           <div className="row-line">
             <dt>Status</dt>
-            <dd className="is-ok">
-              <CheckIcon />
-              Nothing charged
+            <dd className={line.ok ? "is-ok" : "is-pending"}>
+              {line.ok ? <CheckIcon /> : <span className="spinner spinner-ink" aria-hidden="true" />}
+              {line.label}
             </dd>
           </div>
         </dl>
       </section>
       <div className="dock state-actions">
-        <button ref={button} type="button" className="pay" onClick={onClose}>
-          Close
+        <button ref={button} type="button" className="pay" onClick={primary.onClick}>
+          {primary.label}
         </button>
+        {secondary && (
+          <button type="button" className="secondary" onClick={secondary.onClick}>
+            {secondary.label}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -69,7 +85,7 @@ export function NotFoundScreen({ onClose }: { onClose: () => void }) {
     <ProblemScreen
       title="We couldn't find that product"
       body="The store sent a product we don't recognise, so there is nothing to pay for."
-      onClose={onClose}
+      primary={{ label: "Close", onClick: onClose }}
     />
   );
 }
