@@ -230,6 +230,12 @@ $("#clear").addEventListener("click", () => {
 
 function renderSnippet() {
   const options = buildOptions(settings.productId);
+  const indent = (obj: object) =>
+    JSON.stringify(obj, null, 2)
+      .split("\n")
+      .map((line, i) => (i === 0 ? line : "  " + line))
+      .join("\n")
+      .replace(/"([a-zA-Z]+)":/g, "$1:");
   const lines: string[] = [
     `<script src="${CHECKOUT_ORIGIN}/sdk/dodo-checkout.js"></script>`,
     "",
@@ -238,15 +244,41 @@ function renderSnippet() {
   ];
   if (options.quantity) lines.push(`  quantity: ${options.quantity},`);
   if (options.layout) lines.push(`  layout: "${options.layout}",`);
-  if (options.theme) lines.push(`  theme: ${JSON.stringify(options.theme)},`);
-  if (options.merchant) lines.push(`  merchant: ${JSON.stringify(options.merchant)},`);
+  if (options.theme) lines.push(`  theme: ${indent(options.theme)},`);
+  if (options.merchant) lines.push(`  merchant: ${indent(options.merchant)},`);
   if (options.customerEmail) lines.push(`  customerEmail: "${options.customerEmail}",`);
   lines.push("  onSuccess: ({ sessionId }) => { /* fulfil the order */ },");
-  lines.push("  onClose: ({ reason }) => { /* \"user\" | \"complete\" | \"host\" | \"error\" */ },");
+  lines.push('  onClose: ({ reason }) => { /* "user" | "complete" | "host" | "error" */ },');
   lines.push("  onError: ({ code, message }) => { /* log it */ },");
   lines.push("});");
-  $("#snippet").textContent = lines.join("\n");
+  const text = lines.join("\n");
+  snippetText = text;
+  $("#snippet").innerHTML = highlight(text);
 }
+
+let snippetText = "";
+
+/** Just enough colour to read: strings, comments, and the rest. */
+function highlight(code: string): string {
+  return escapeHtml(code).replace(/(\/\*[\s\S]*?\*\/)|(&quot;(?:[^&]|&(?!quot;))*?&quot;)/g, (m, comment, str) =>
+    comment ? `<span class="tok-c">${comment}</span>` : `<span class="tok-s">${str}</span>`,
+  );
+}
+
+$("#copy-snippet").addEventListener("click", async () => {
+  const button = $<HTMLButtonElement>("#copy-snippet");
+  try {
+    await navigator.clipboard.writeText(snippetText);
+    button.textContent = "Copied";
+  } catch {
+    const range = document.createRange();
+    range.selectNodeContents($("#snippet"));
+    getSelection()?.removeAllRanges();
+    getSelection()?.addRange(range);
+    button.textContent = "Selected";
+  }
+  setTimeout(() => (button.textContent = "Copy"), 1600);
+});
 
 function log(event: string, payload: Record<string, unknown>) {
   const item = document.createElement("li");

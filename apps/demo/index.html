@@ -135,13 +135,19 @@
 
             <div class="control">
               <span class="control-label">Options</span>
-              <label class="check"><input type="checkbox" id="prefill" /> Pre-fill email (<code>customerEmail</code>)</label>
-              <label class="check"><input type="checkbox" id="identity" /> Pass name and logo explicitly instead of reading them</label>
-              <label class="check"><input type="checkbox" id="radius" /> Large corner radius</label>
+              <label class="check"><input type="checkbox" id="prefill" /><span>Pre-fill email <code>customerEmail</code></span></label>
+              <label class="check"><input type="checkbox" id="identity" /><span>Pass name and logo explicitly instead of reading them</span></label>
+              <label class="check"><input type="checkbox" id="radius" /><span>Large corner radius</span></label>
             </div>
           </div>
 
-          <pre class="snippet" aria-label="Code that runs on Buy"><code id="snippet"></code></pre>
+          <div class="codeblock">
+            <div class="codeblock-head">
+              <span class="codeblock-file">index.html</span>
+              <button type="button" id="copy-snippet" class="codeblock-copy">Copy</button>
+            </div>
+            <pre class="snippet" aria-label="Code that runs on Buy"><code id="snippet"></code></pre>
+          </div>
 
           <h3>Weird states</h3>
           <div class="edge">
