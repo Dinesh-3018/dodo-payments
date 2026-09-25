@@ -94,6 +94,7 @@ export type Protocol = "dodo-checkout/1";
 const PROTOCOL: Protocol = "dodo-checkout/1";
 const LOAD_TIMEOUT_MS = 10_000;
 const CLOSE_FALLBACK_MS = 1500;
+const ENTRANCE_GRACE_MS = 500;
 const EXIT_MS = 240;
 
 /** Host -> checkout. */
@@ -190,6 +191,9 @@ function createSession(options: OpenOptions): { handle: CheckoutHandle; focus():
   let ready = false;
   let dismissable = true;
   let closeFallback = 0;
+  let succeeded = false;
+  let backdropPressed = false;
+  const openedAt = performance.now();
 
   const focusFrame = () => frame.focus();
   sentinels.forEach((s) => s.addEventListener("focus", focusFrame));
@@ -265,9 +269,13 @@ function createSession(options: OpenOptions): { handle: CheckoutHandle; focus():
         nudge();
         break;
       case "success":
+        // At most once per session, whatever the checkout does.
+        if (succeeded) break;
+        succeeded = true;
         callHost(options.onSuccess, { sessionId });
         break;
       case "error":
+        if (succeeded) break; // nothing can go wrong after the money moved
         if (typeof message.code === "string" && typeof message.message === "string") {
           callHost(options.onError, { code: message.code, message: message.message });
         }
@@ -308,7 +316,19 @@ function createSession(options: OpenOptions): { handle: CheckoutHandle; focus():
   const onKeydown = (event: KeyboardEvent) => {
     if (event.key === "Escape") requestClose();
   };
-  backdrop.addEventListener("click", requestClose);
+  // A backdrop dismissal must be a deliberate gesture: pointer down and up on
+  // the backdrop itself, and not during the entrance. The second click of a
+  // double-click on Buy lands here about 100ms after open(); it is not a
+  // request to close. Neither is a drag that starts in the panel and ends
+  // outside it.
+  backdrop.addEventListener("pointerdown", () => {
+    backdropPressed = performance.now() - openedAt > ENTRANCE_GRACE_MS;
+  });
+  backdrop.addEventListener("click", () => {
+    const deliberate = backdropPressed;
+    backdropPressed = false;
+    if (deliberate) requestClose();
+  });
   document.addEventListener("keydown", onKeydown);
   window.addEventListener("message", onMessage);
 

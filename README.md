@@ -142,7 +142,7 @@ Not on the list, on purpose: custom CSS, copy, field order, the pay button label
 
 ## The open calls
 
-**Buy pressed twice.** `open()` while a checkout is open returns the existing handle and refocuses it. No second iframe, no second session, no duplicate callbacks. Inside the checkout, Pay ignores further presses while processing (the button stays focusable, with `aria-disabled` and `aria-busy`, so focus does not jump) and the state machine ignores a second submit, so a double-click or a double Enter is one attempt.
+**Buy pressed twice.** Three different things can go wrong, and each has its own guard. A second `open()` while a checkout is open returns the existing handle and refocuses it: no second iframe, no second session, no duplicate callbacks. A real double-click is subtler: the first click mounts the overlay, so the second click lands on the backdrop where the button was, about 100 ms later, and a naive overlay treats that as "dismiss" and closes what it just opened. So the backdrop only dismisses on a deliberate gesture: pointer down and up on the backdrop itself, and never in the first half second. Inside the checkout, Pay ignores further presses while processing (the button stays focusable, with `aria-disabled` and `aria-busy`, so focus does not jump), the state machine ignores a second submit, and the SDK delivers `onSuccess` at most once per session. This is how the established players do it too: Stripe and Shopify disable the pay button while a confirmation is in flight and rely on an idempotency key server-side; Razorpay's modal ignores a second `open()`; Apple Pay's sheet is system-modal, so a second tap has nowhere to go. What is left for a real backend is the idempotency key itself: `sessionId` is the natural one.
 
 **Close then reopen straight away.** `handle.close(); DodoCheckout.open(...)` in the same tick is fine: scroll lock and focus are restored synchronously, only the exit animation and `onClose` are deferred.
 
@@ -173,6 +173,11 @@ Not on the list, on purpose: custom CSS, copy, field order, the pay button label
 | Offline at pay time | failure screen "You're offline", Try again | `onError(offline)` |
 | Success | check mark, confetti, amount, masked card, Done | `onSuccess` then `onClose(complete)` |
 | Escape / backdrop / X | closes when idle; nudges and announces when processing; if the checkout never answers a close request, the SDK closes anyway after 1.5 s | `onClose(user)` |
+| Double-click on Buy | one checkout opens and stays open; the second click is absorbed | one `open()`, one session |
+| Drag from the panel that ends on the backdrop | nothing; only a press and release on the backdrop dismisses | nothing |
+| Checkout reports success twice, or an error after success | the host hears success once and nothing after it | one `onSuccess` |
+| Host page reloads or navigates mid-payment | the iframe dies with the page; a real backend would resolve the outcome by session id and webhook | nothing (page is gone) |
+| Host's CSP blocks the iframe or the script | nothing renders; after 10 s the SDK gives up | `onError(load_failed)` then `onClose(error)` |
 | Host `close()` | closes immediately | `onClose(host)` |
 | Reduced motion | no slide, no confetti, instant states | same |
 
