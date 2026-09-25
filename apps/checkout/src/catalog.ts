@@ -13,10 +13,10 @@ export interface Product {
 }
 
 const CATALOG: Record<string, Product> = {
-  prod_123: { id: "prod_123", name: "Sambar Powder, 250 g", description: "Stone ground the week you order", amount: 34900, currency: "INR", art: "spice", stock: 8 },
-  prod_456: { id: "prod_456", name: "Cow Ghee, 500 ml", description: "Bilona method, from Erode", amount: 59900, currency: "INR", art: "ghee", stock: 5 },
-  prod_789: { id: "prod_789", name: "Ponni Rice, 5 kg", description: "Aged a year, cooks fluffy", amount: 44900, currency: "INR", art: "rice", stock: 10 },
-  prod_321: { id: "prod_321", name: "Mango Pickle, 300 g", description: "Sun-dried, gingelly oil", amount: 15900, currency: "INR", art: "pickle", stock: 20 },
+  prod_123: { id: "prod_123", name: "Sambar Powder, 250 g", description: "Stone ground the week you order", amount: 16900, currency: "INR", art: "spice", stock: 8 },
+  prod_456: { id: "prod_456", name: "Cow Ghee, 500 ml", description: "Bilona method, from Erode", amount: 45900, currency: "INR", art: "ghee", stock: 5 },
+  prod_789: { id: "prod_789", name: "Ponni Rice, 5 kg", description: "Aged a year, cooks fluffy", amount: 39900, currency: "INR", art: "rice", stock: 10 },
+  prod_321: { id: "prod_321", name: "Mango Pickle, 300 g", description: "Sun-dried, gingelly oil", amount: 9900, currency: "INR", art: "pickle", stock: 20 },
 };
 
 /** Pretend catalogue lookup. Latency is real so the loading state is real. */
@@ -35,9 +35,9 @@ export interface Perk {
 }
 
 export const STORE_PERKS: Perk[] = [
-  { threshold: 29900, label: "Free shipping", detail: "free shipping" },
-  { threshold: 79900, label: "Free sample", detail: "a free sample" },
-  { threshold: 149900, label: "Free tote bag", detail: "a free tote bag" },
+  { threshold: 14900, label: "Free shipping", detail: "free shipping" },
+  { threshold: 49900, label: "Free sample", detail: "a free sample" },
+  { threshold: 99900, label: "Free tote bag", detail: "a free tote bag" },
 ];
 
 export const MAX_QUANTITY = 10;
