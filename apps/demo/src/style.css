@@ -80,8 +80,17 @@ h1 { margin: 0 0 8px; font-size: 28px; font-weight: 600; letter-spacing: -0.02em
 .pcard-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
 .price { margin: 0; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .pcard .btn-primary { width: 100%; height: 42px; padding: 0; font-size: 14.5px; }
-.pcard .qty { padding: 2px; }
-.pcard .qty-btn { width: 30px; height: 30px; font-size: 16px; }
+.qty { display: inline-flex; align-items: center; gap: 2px; padding: 3px; border-radius: 999px; background: var(--fill); }
+.qty-btn {
+  width: 30px; height: 30px; border: 0; border-radius: 50%; background: transparent;
+  color: var(--ink); font: inherit; font-size: 16px; line-height: 1; cursor: pointer;
+  transition: background 120ms ease, transform 100ms ease;
+}
+.qty-btn:hover:not(:disabled) { background: var(--card); box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+.qty-btn:active:not(:disabled) { transform: scale(0.92); }
+.qty-btn:disabled { color: #c4c4c4; cursor: not-allowed; }
+.qty-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.qty-value { min-width: 24px; text-align: center; font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .fine { margin: 18px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--muted); max-width: 60ch; }
 
 .btn-primary {
