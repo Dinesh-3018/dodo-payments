@@ -4,3 +4,4 @@ dist
 *.local
 .vercel
 apps/checkout/public/sdk
+tests/shots

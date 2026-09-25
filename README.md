@@ -77,7 +77,7 @@ The two apps run on different ports on purpose. That makes the iframe cross-orig
 
 ### How the edge cases are tested
 
-`pnpm dev`, then run the headless suite (Playwright driving the installed Chrome) against the two dev servers; it exercises every condition in the states table, including a real double-click, going offline before and after Pay, the bank challenge, three declines, the stock cap, a page that posts a crafted `init` straight to the iframe, a host stylesheet that tries to hide the overlay, reduced motion, and the brand reader with private, IPv6-mapped, DNS-rebound and redirecting targets plus a megabyte of pathological CSS. The two things a browser cannot check are the CSP header and the leave-page prompt: `curl -I https://dodo-checkout-flame.vercel.app/` shows the header, and reloading the page while a payment is in flight shows the prompt.
+With `pnpm dev` running, `pnpm test:e2e` drives the installed Google Chrome headlessly against the two dev servers (Playwright is a dev dependency; no browser download needed). It exercises every condition in the states table, including a real double-click, going offline before and after Pay, the bank challenge, three declines, the stock cap, a page that posts a crafted `init` straight to the iframe, a host stylesheet that tries to hide the overlay, reduced motion, and the brand reader with private, IPv6-mapped, DNS-rebound and redirecting targets plus a megabyte of pathological CSS. The two things a browser cannot check are the CSP header and the leave-page prompt: `curl -I https://dodo-checkout-flame.vercel.app/` shows the header, and reloading the page while a payment is in flight shows the prompt.
 
 ### Test cards
 

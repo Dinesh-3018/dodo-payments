@@ -5,6 +5,10 @@
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm --filter @dodo/sdk build && pnpm --filter @dodo/checkout build && pnpm --filter @dodo/demo build",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "test:e2e": "node tests/e2e.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
   }
 }
