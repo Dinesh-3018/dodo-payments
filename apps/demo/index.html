@@ -3,59 +3,99 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#1d4ed8" />
-    <meta property="og:site_name" content="Kestrel Supply Co." />
+    <meta name="theme-color" content="#c2410c" />
+    <meta property="og:site_name" content="Lakshmi Stores" />
     <link rel="icon" href="/logo.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/logo.svg" />
-    <title>Kestrel Supply Co.</title>
+    <title>Lakshmi Stores</title>
     <link rel="stylesheet" href="/src/style.css" />
     <!-- The one script. It is served from the checkout's origin, never from this site. -->
     <script src="%VITE_CHECKOUT_ORIGIN%/sdk/dodo-checkout.js"></script>
   </head>
   <body>
     <header class="site-header">
-      <a class="logo" href="#"><img src="/logo.svg" alt="" width="28" height="28" /> Kestrel Supply Co.</a>
+      <a class="logo" href="#"><img src="/logo.svg" alt="" width="28" height="28" /> Lakshmi Stores</a>
       <nav class="site-nav" aria-label="Store">
         <a href="/minimal.html">Minimal embed</a><a href="/declarative.html">No-JS embed</a>
       </nav>
-      <span class="status" id="status" aria-live="polite">Checkout closed</span>
     </header>
 
     <main class="layout">
       <section class="store">
-        <article class="product-card">
-          <div class="product-art" aria-hidden="true">
-            <svg viewBox="0 0 320 320" width="100%">
-              <rect width="320" height="320" rx="32" fill="#f5f5f5" />
-              <g transform="translate(70 60)">
-                <rect x="0" y="16" width="140" height="190" rx="12" fill="#1d4ed8" opacity="0.18" />
-                <rect x="18" y="8" width="140" height="190" rx="12" fill="#1d4ed8" opacity="0.45" />
-                <rect x="36" y="0" width="140" height="190" rx="12" fill="#1d4ed8" />
-                <rect x="36" y="0" width="22" height="190" rx="6" fill="#000" opacity="0.18" />
-                <g fill="#fff" opacity="0.75">
-                  <circle cx="98" cy="60" r="4" /><circle cx="120" cy="60" r="4" /><circle cx="142" cy="60" r="4" />
-                  <circle cx="98" cy="84" r="4" /><circle cx="120" cy="84" r="4" /><circle cx="142" cy="84" r="4" />
-                  <circle cx="98" cy="108" r="4" /><circle cx="120" cy="108" r="4" /><circle cx="142" cy="108" r="4" />
-                </g>
-              </g>
-            </svg>
+        <section class="shop">
+          <div class="shop-head">
+            <p class="eyebrow">From Madurai, packed this week</p>
+            <h1>Masalas, ghee and rice, the way amma buys them.</h1>
+            <p class="desc">Free shipping over ₹299. A free sample over ₹799. A tote bag over ₹1,499. The checkout keeps score for you.</p>
           </div>
-          <div class="product-info">
-            <p class="eyebrow">Field notebooks</p>
-            <h1>Field Notebook, pack of 3</h1>
-            <p class="price">$18.00</p>
-            <p class="desc">Dot grid, 48 pages each, a cover that survives a back pocket. Lies flat from the first page.</p>
-            <div class="buy-row">
-              <div class="qty" role="group" aria-label="Quantity">
-                <button type="button" class="qty-btn" data-qty="-1" aria-label="Decrease quantity">−</button>
-                <span class="qty-value" id="qty">1</span>
-                <button type="button" class="qty-btn" data-qty="1" aria-label="Increase quantity">+</button>
+          <div class="products">
+            <article class="pcard" data-product="prod_123">
+              <div class="pcard-art" aria-hidden="true">
+                <svg viewBox="0 0 64 64" width="64" height="64"><path d="M20 14h24v6l-4 4v22a8 8 0 0 1-16 0V24l-4-4z" fill="#c2410c"/><rect x="22" y="30" width="20" height="10" rx="2" fill="#fff" opacity="0.85"/><circle cx="32" cy="12" r="3" fill="#7c2d12"/></svg>
               </div>
-              <button id="buy" class="btn-primary" type="button">Buy now</button>
-            </div>
-            <p class="fine">Free shipping from $15, a free sleeve from $40, free engraving from $70. Test cards: 4242 4242 4242 4242 pays, 4000 0000 0000 0002 declines, 4000 0000 0000 0341 fails once then pays.</p>
+              <h2>Sambar Powder</h2>
+              <p class="pcard-meta">250 g · stone ground</p>
+              <div class="pcard-row">
+                <span class="price">₹349</span>
+                <div class="qty" role="group" aria-label="Quantity">
+                  <button type="button" class="qty-btn" data-qty="-1" aria-label="Decrease quantity">−</button>
+                  <span class="qty-value">1</span>
+                  <button type="button" class="qty-btn" data-qty="1" aria-label="Increase quantity">+</button>
+                </div>
+              </div>
+              <button id="buy" class="btn-primary" type="button" data-buy="prod_123">Buy now</button>
+            </article>
+            <article class="pcard" data-product="prod_456">
+              <div class="pcard-art" aria-hidden="true">
+                <svg viewBox="0 0 64 64" width="64" height="64"><rect x="16" y="14" width="32" height="40" rx="6" fill="#c2410c"/><rect x="20" y="8" width="24" height="8" rx="3" fill="#7c2d12"/><rect x="21" y="26" width="22" height="16" rx="3" fill="#fff" opacity="0.85"/></svg>
+              </div>
+              <h2>Cow Ghee</h2>
+              <p class="pcard-meta">500 ml · bilona method</p>
+              <div class="pcard-row">
+                <span class="price">₹599</span>
+                <div class="qty" role="group" aria-label="Quantity">
+                  <button type="button" class="qty-btn" data-qty="-1" aria-label="Decrease quantity">−</button>
+                  <span class="qty-value">1</span>
+                  <button type="button" class="qty-btn" data-qty="1" aria-label="Increase quantity">+</button>
+                </div>
+              </div>
+              <button class="btn-primary" type="button" data-buy="prod_456">Buy now</button>
+            </article>
+            <article class="pcard" data-product="prod_789">
+              <div class="pcard-art" aria-hidden="true">
+                <svg viewBox="0 0 64 64" width="64" height="64"><path d="M18 22h28l4 30H14z" fill="#c2410c"/><path d="M22 22c0-6 4-10 10-10s10 4 10 10" fill="none" stroke="#7c2d12" stroke-width="4" stroke-linecap="round"/><rect x="24" y="34" width="16" height="10" rx="2" fill="#fff" opacity="0.85"/></svg>
+              </div>
+              <h2>Ponni Rice</h2>
+              <p class="pcard-meta">5 kg · aged a year</p>
+              <div class="pcard-row">
+                <span class="price">₹449</span>
+                <div class="qty" role="group" aria-label="Quantity">
+                  <button type="button" class="qty-btn" data-qty="-1" aria-label="Decrease quantity">−</button>
+                  <span class="qty-value">1</span>
+                  <button type="button" class="qty-btn" data-qty="1" aria-label="Increase quantity">+</button>
+                </div>
+              </div>
+              <button class="btn-primary" type="button" data-buy="prod_789">Buy now</button>
+            </article>
+            <article class="pcard" data-product="prod_321">
+              <div class="pcard-art" aria-hidden="true">
+                <svg viewBox="0 0 64 64" width="64" height="64"><rect x="18" y="18" width="28" height="36" rx="8" fill="#c2410c"/><rect x="16" y="10" width="32" height="10" rx="4" fill="#7c2d12"/><circle cx="27" cy="34" r="3" fill="#fff" opacity="0.8"/><circle cx="37" cy="40" r="3" fill="#fff" opacity="0.8"/><circle cx="34" cy="28" r="2.2" fill="#fff" opacity="0.6"/></svg>
+              </div>
+              <h2>Mango Pickle</h2>
+              <p class="pcard-meta">300 g · gingelly oil</p>
+              <div class="pcard-row">
+                <span class="price">₹159</span>
+                <div class="qty" role="group" aria-label="Quantity">
+                  <button type="button" class="qty-btn" data-qty="-1" aria-label="Decrease quantity">−</button>
+                  <span class="qty-value">1</span>
+                  <button type="button" class="qty-btn" data-qty="1" aria-label="Increase quantity">+</button>
+                </div>
+              </div>
+              <button class="btn-primary" type="button" data-buy="prod_321">Buy now</button>
+            </article>
           </div>
-        </article>
+          <p class="fine">Test cards: 4242 4242 4242 4242 pays, 4000 0000 0000 0002 declines, 4000 0000 0000 0341 fails once then pays, 4000 0000 0000 3220 asks your bank first.</p>
+        </section>
 
         <section class="playground" aria-labelledby="pg-title">
           <h2 id="pg-title">Integration playground</h2>

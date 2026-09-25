@@ -10,24 +10,20 @@ const settings = {
   prefill: false,
   identity: false,
   radius: false,
-  quantity: 1,
+  productId: "prod_123",
 };
 
 let current: CheckoutHandle | null = null;
 
-function buildOptions(productId: string): OpenOptions {
+function buildOptions(productId: string, quantity = quantityOf(productId)): OpenOptions {
   const options: OpenOptions = {
     productId,
     layout: settings.layout,
-    ...(settings.quantity > 1 ? { quantity: settings.quantity } : {}),
-    onSuccess: ({ sessionId }) => {
-      log("onSuccess", { sessionId });
-      setStatus("Paid", "is-paid");
-    },
+    ...(quantity > 1 ? { quantity } : {}),
+    onSuccess: ({ sessionId }) => log("onSuccess", { sessionId }),
     onClose: ({ reason }) => {
       log("onClose", { reason });
       current = null;
-      setStatus("Checkout closed", "");
     },
     onError: ({ code, message }) => log("onError", { code, message }),
   };
@@ -39,7 +35,7 @@ function buildOptions(productId: string): OpenOptions {
   const merchant: NonNullable<OpenOptions["merchant"]> = {};
   if (settings.site) merchant.site = settings.site;
   if (settings.identity) {
-    merchant.name = "Kestrel Supply Co.";
+    merchant.name = "Lakshmi Stores";
     merchant.logo = `${location.origin}/logo.svg`;
   }
   if (Object.keys(merchant).length) options.merchant = merchant;
@@ -58,7 +54,6 @@ function openCheckout(productId = "prod_123"): CheckoutHandle | null {
     const reused = current !== null && current.sessionId === handle.sessionId;
     current = handle;
     log("open()", { sessionId: handle.sessionId, ...(reused ? { note: "same session returned; nothing new opened" } : {}) });
-    setStatus("Checkout open", "is-open");
     return handle;
   } catch (error) {
     log("open() threw", { error: String(error) });
@@ -70,24 +65,35 @@ function openCheckout(productId = "prod_123"): CheckoutHandle | null {
 
 const $ = <T extends Element>(selector: string) => document.querySelector<T>(selector)!;
 
-$("#buy").addEventListener("click", () => openCheckout());
-
 const MAX_QUANTITY = 10; // same ceiling as the checkout's own stepper
+const quantities = new Map<string, number>();
+const quantityOf = (productId: string) => quantities.get(productId) ?? 1;
 
-function renderQuantity() {
-  $("#qty").textContent = String(settings.quantity);
-  $<HTMLButtonElement>('[data-qty="-1"]').disabled = settings.quantity <= 1;
-  $<HTMLButtonElement>('[data-qty="1"]').disabled = settings.quantity >= MAX_QUANTITY;
-}
-
-document.querySelectorAll<HTMLButtonElement>("[data-qty]").forEach((button) => {
-  button.addEventListener("click", () => {
-    settings.quantity = Math.min(MAX_QUANTITY, Math.max(1, settings.quantity + Number(button.dataset.qty)));
-    renderQuantity();
+document.querySelectorAll<HTMLElement>("[data-product]").forEach((card) => {
+  const productId = card.dataset.product ?? "";
+  const value = card.querySelector<HTMLElement>(".qty-value")!;
+  const minus = card.querySelector<HTMLButtonElement>('[data-qty="-1"]')!;
+  const plus = card.querySelector<HTMLButtonElement>('[data-qty="1"]')!;
+  const render = () => {
+    const q = quantityOf(productId);
+    value.textContent = String(q);
+    minus.disabled = q <= 1;
+    plus.disabled = q >= MAX_QUANTITY;
+  };
+  [minus, plus].forEach((button) =>
+    button.addEventListener("click", () => {
+      quantities.set(productId, Math.min(MAX_QUANTITY, Math.max(1, quantityOf(productId) + Number(button.dataset.qty))));
+      render();
+      if (productId === settings.productId) renderSnippet();
+    }),
+  );
+  card.querySelector<HTMLButtonElement>("[data-buy]")!.addEventListener("click", () => {
+    settings.productId = productId;
     renderSnippet();
+    openCheckout(productId);
   });
+  render();
 });
-renderQuantity();
 
 document.querySelectorAll<HTMLButtonElement>("[data-layout]").forEach((button) => {
   button.addEventListener("click", () => {
@@ -223,12 +229,12 @@ $("#clear").addEventListener("click", () => {
 // ---- rendering -----------------------------------------------------------
 
 function renderSnippet() {
-  const options = buildOptions("prod_123");
+  const options = buildOptions(settings.productId);
   const lines: string[] = [
     `<script src="${CHECKOUT_ORIGIN}/sdk/dodo-checkout.js"></script>`,
     "",
     "DodoCheckout.open({",
-    `  productId: "prod_123",`,
+    `  productId: "${settings.productId}",`,
   ];
   if (options.quantity) lines.push(`  quantity: ${options.quantity},`);
   if (options.layout) lines.push(`  layout: "${options.layout}",`);
@@ -253,11 +259,6 @@ function log(event: string, payload: Record<string, unknown>) {
   while (list.children.length > 60) list.lastElementChild?.remove();
 }
 
-function setStatus(text: string, className: string) {
-  const el = $("#status");
-  el.textContent = text;
-  el.className = `status ${className}`;
-}
 
 function escapeHtml(text: string): string {
   return text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c);

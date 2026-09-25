@@ -60,19 +60,19 @@ let frame = await checkoutFrame();
 await frame.getByLabel("Email").waitFor({ timeout: 10000 });
 await page.waitForTimeout(400);
 await page.screenshot({ path: `${SHOTS}/01-drawer-form.png` });
-ok("brand name from site", (await frame.locator(".hdr-name").textContent())?.includes("Kestrel"));
+ok("brand name from site", (await frame.locator(".hdr-name").textContent())?.includes("Lakshmi"));
 const accent = await frame.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--accent").trim());
-ok("accent auto-read from site", accent === "#1d4ed8", accent);
+ok("accent auto-read from site", accent === "#c2410c", accent);
 
 // perks and quantity
 ok("one perk unlocked at qty 1", (await frame.locator(".perk.is-unlocked").count()) === 1);
 await frame.getByRole("button", { name: "Increase quantity" }).click();
 await frame.getByRole("button", { name: "Increase quantity" }).click();
-ok("two perks at qty 3 and total updates", (await frame.locator(".perk.is-unlocked").count()) === 2 && (await frame.locator(".pay").textContent()) === "Pay $54.00");
-ok("away line names the next perk", (await frame.locator(".perks-line").textContent())?.includes("$16.00 away from free engraving"));
+ok("two perks at qty 3 and total updates", (await frame.locator(".perk.is-unlocked").count()) === 2 && (await frame.locator(".pay").textContent()) === "Pay ₹1,047");
+ok("away line names the next perk", (await frame.locator(".perks-line").textContent())?.includes("₹452 away from a free tote bag"));
 await frame.getByRole("button", { name: "Decrease quantity" }).click();
 await frame.getByRole("button", { name: "Decrease quantity" }).click();
-ok("back to qty 1", (await frame.locator(".pay").textContent()) === "Pay $18.00" && (await frame.getByRole("button", { name: "Decrease quantity" }).isDisabled()));
+ok("back to qty 1", (await frame.locator(".pay").textContent()) === "Pay ₹349" && (await frame.getByRole("button", { name: "Decrease quantity" }).isDisabled()));
 
 // validation: submit empty
 await frame.getByRole("button", { name: /^Pay/ }).click();
@@ -84,7 +84,7 @@ await page.screenshot({ path: `${SHOTS}/02-validation.png` });
 await fillCard(frame, "4242424242424242");
 ok("visa icon detected", (await frame.locator('svg[aria-label="Visa"]').count()) === 1);
 await page.screenshot({ path: `${SHOTS}/03-filled.png` });
-await frame.getByRole("button", { name: /^Pay \$18\.00/ }).click();
+await frame.getByRole("button", { name: /^Pay ₹349$/ }).click();
 await frame.locator(".pay.is-busy").waitFor();
 ok("processing copy", (await frame.locator(".pay").textContent())?.includes("Confirming payment"));
 // try to dismiss mid-payment: Escape in the frame and backdrop click on host
@@ -317,7 +317,7 @@ await frame.getByLabel("Email").waitFor();
 ok("change reveals the email field with the value", (await frame.getByLabel("Email").inputValue()) === "sam@example.com" && (await frame.evaluate(() => document.activeElement?.id)) === "email");
 const accent2 = await frame.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--accent").trim());
 ok("explicit accent wins", accent2 === "#c2410c", accent2);
-ok("host quantity honoured", (await frame.locator(".stepper-value").textContent()) === "2" && (await frame.locator(".pay").textContent()) === "Pay $36.00");
+ok("host quantity honoured", (await frame.locator(".stepper-value").textContent()) === "2" && (await frame.locator(".pay").textContent()) === "Pay ₹698");
 await page.keyboard.press("Escape");
 await waitOverlay(false);
 await page.click('[data-qty="-1"]');
@@ -395,18 +395,18 @@ await mini.close();
 const decl = await context.newPage();
 decl.on("console", (m) => { if (m.type() === "error") consoleErrors.push("declarative: " + m.text()); });
 await decl.goto(DEMO + "declarative.html");
-ok("script tag defaults are read", await decl.evaluate(() => window.DodoCheckout?.defaults?.layout === "modal" && window.DodoCheckout.defaults.theme?.accent === "#1d4ed8"));
+ok("script tag defaults are read", await decl.evaluate(() => window.DodoCheckout?.defaults?.layout === "modal" && window.DodoCheckout.defaults.theme?.accent === "#c2410c"));
 await decl.click("[data-dodo-product]");
 await decl.waitForFunction(() => !!document.querySelector("[data-dodo-checkout]"));
 let declFrame;
 for (let i = 0; i < 100 && !declFrame; i++) { declFrame = decl.frames().find((f) => f.url().startsWith(CHECKOUT)); if (!declFrame) await decl.waitForTimeout(50); }
 await declFrame.getByLabel("Email").waitFor({ timeout: 10000 });
-ok("declarative open used tag defaults and element quantity", (await declFrame.locator(".stepper-value").textContent()) === "2" && (await declFrame.locator(".hdr-name").textContent()) === "Kestrel Supply Co." && (await declFrame.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--accent").trim())) === "#1d4ed8");
+ok("declarative open used tag defaults and element quantity", (await declFrame.locator(".stepper-value").textContent()) === "2" && (await declFrame.locator(".hdr-name").textContent()) === "Lakshmi Stores" && (await declFrame.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--accent").trim())) === "#c2410c");
 await declFrame.getByLabel("Email").fill("sam@example.com");
 await declFrame.getByLabel("Card number").fill("4242424242424242");
 await declFrame.getByLabel("Expiry").fill("1230");
 await declFrame.getByLabel("CVC").fill("123");
-await declFrame.getByRole("button", { name: /^Pay \$36\.00/ }).click();
+await declFrame.getByRole("button", { name: /^Pay ₹698$/ }).click();
 await declFrame.getByText("Payment complete").waitFor({ timeout: 8000 });
 await declFrame.getByRole("button", { name: "Done" }).click();
 await decl.waitForFunction(() => !document.querySelector("[data-dodo-checkout]"));

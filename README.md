@@ -2,7 +2,7 @@
 
 A checkout you can drop into any website with one script tag. It slides in, takes a card, and gets out of the way. The card never touches your page.
 
-Try it: https://dodo-checkout-demo-two.vercel.app (buy a notebook, it's fake, the confetti is real)
+Try it: https://dodo-checkout-demo-two.vercel.app (buy some sambar powder, it's fake, the confetti is real)
 
 Smallest possible version: https://dodo-checkout-demo-two.vercel.app/minimal.html (view source, that's all of it)
 
@@ -40,7 +40,7 @@ A store can set the layout (drawer or modal), colour, corners, font, name and lo
 
 ```
 pnpm install
-pnpm dev          # store on :5173, checkout on :5174, different origins on purpose
+pnpm dev          # Lakshmi Stores on :5173, checkout on :5174, different origins on purpose
 pnpm test:e2e     # 75 checks in headless Chrome, with pnpm dev still running
 ```
 
@@ -53,7 +53,7 @@ Cards to try:
 | 4000 0000 0000 0341 | fails once, slowly, then pays on retry |
 | 4000 0000 0000 3220 | your bank wants a word first |
 
-Also fun: press Buy twice, pull the network cable mid-payment, hit Escape while it's paying, add nine notebooks. It handles all of it and tells the host page the truth each time.
+Also fun: press Buy twice, pull the network cable mid-payment, hit Escape while it's paying, try to buy nine packets when there are eight. It handles all of it and tells the host page the truth each time.
 
 ## How the pieces talk
 
