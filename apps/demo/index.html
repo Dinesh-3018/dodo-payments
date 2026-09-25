@@ -45,8 +45,15 @@
             <h1>Field Notebook, pack of 3</h1>
             <p class="price">$18.00</p>
             <p class="desc">Dot grid, 48 pages each, a cover that survives a back pocket. Lies flat from the first page.</p>
-            <button id="buy" class="btn-primary" type="button">Buy now</button>
-            <p class="fine">Ships in 2 days. 30-day returns. Test cards: 4242 4242 4242 4242 pays, 4000 0000 0000 0002 declines, 4000 0000 0000 0341 fails once then pays.</p>
+            <div class="buy-row">
+              <div class="qty" role="group" aria-label="Quantity">
+                <button type="button" class="qty-btn" data-qty="-1" aria-label="Decrease quantity">−</button>
+                <span class="qty-value" id="qty">1</span>
+                <button type="button" class="qty-btn" data-qty="1" aria-label="Increase quantity">+</button>
+              </div>
+              <button id="buy" class="btn-primary" type="button">Buy now</button>
+            </div>
+            <p class="fine">Free shipping from $15, a free sleeve from $40, free engraving from $70. Test cards: 4242 4242 4242 4242 pays, 4000 0000 0000 0002 declines, 4000 0000 0000 0341 fails once then pays.</p>
           </div>
         </article>
 

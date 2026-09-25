@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import confetti from "canvas-confetti";
+import { burst } from "../confetti";
 import type { CardBrand } from "../card";
 import { CardBrandIcon } from "./icons";
 
@@ -19,13 +19,9 @@ export function SuccessScreen({ amount, merchantName, email, brand, last4, onDon
 
   useEffect(() => {
     done.current?.focus();
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     if (Date.now() - lastBurst < 800) return; // StrictMode double-mount guard
     lastBurst = Date.now();
-    const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#111827";
-    // One burst, in the brand colour and neutrals. A receipt, not a party popper.
-    const colors = [accent, "#0a0a0a", "#737373", "#d4d4d4", "#f5b400"];
-    confetti({ particleCount: 110, spread: 80, startVelocity: 36, origin: { x: 0.5, y: 0.4 }, colors, ticks: 210, scalar: 0.85, gravity: 1.1 });
+    burst();
     return undefined;
   }, []);
 

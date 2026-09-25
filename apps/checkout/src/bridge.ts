@@ -1,4 +1,4 @@
-import { sanitizeEmail, sanitizeLayout, sanitizeMerchant, sanitizeTheme, PRODUCT_ID } from "@dodo/sdk/sanitize";
+import { sanitizeEmail, sanitizeLayout, sanitizeMerchant, sanitizeQuantity, sanitizeTheme, PRODUCT_ID } from "@dodo/sdk/sanitize";
 import { PROTOCOL, type ErrorCode, type InitMessage } from "./protocol";
 
 /** Messages the checkout sends to the host. Session and protocol are added here. */
@@ -61,6 +61,7 @@ export function createBridge(events: BridgeEvents): Bridge {
         type: "init",
         sessionId,
         productId: data.productId,
+        quantity: sanitizeQuantity(data.quantity),
         layout: sanitizeLayout(data.layout),
         theme: sanitizeTheme(data.theme),
         merchant: sanitizeMerchant(data.merchant),

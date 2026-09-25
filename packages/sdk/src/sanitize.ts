@@ -27,6 +27,10 @@ const FONT_FAMILY = /^[A-Za-z0-9 ,'"-]{1,120}$/;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RADII: readonly Radius[] = ["none", "small", "medium", "large"];
 
+export function sanitizeQuantity(value: unknown): number {
+  return Number.isInteger(value) && (value as number) >= 1 && (value as number) <= 99 ? (value as number) : 1;
+}
+
 export function sanitizeLayout(value: unknown): Layout {
   return value === "modal" ? "modal" : "drawer";
 }

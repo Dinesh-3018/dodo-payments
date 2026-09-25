@@ -50,6 +50,8 @@ export type ErrorCode =
 
 export interface OpenOptions {
   productId: string;
+  /** Units of the product, 1 to 99. Default 1. The customer can still change it inside the checkout. */
+  quantity?: number;
   /** "drawer" (default) slides in from the right. "modal" is centred. On phones the drawer is a full-height sheet and the modal a bottom sheet. */
   layout?: Layout;
   theme?: Theme;
@@ -89,6 +91,7 @@ export type InitMessage = {
   type: "init";
   sessionId: string;
   productId: string;
+  quantity: number;
   layout: Layout;
   theme: Theme;
   merchant: Merchant;
@@ -187,7 +190,16 @@ function createSession(options: OpenOptions): { handle: CheckoutHandle; focus():
   };
 
   const sendInit = () => {
-    const init: InitMessage = { protocol: PROTOCOL, type: "init", sessionId, productId: options.productId, layout, theme, merchant };
+    const init: InitMessage = {
+      protocol: PROTOCOL,
+      type: "init",
+      sessionId,
+      productId: options.productId,
+      quantity: options.quantity ?? 1,
+      layout,
+      theme,
+      merchant,
+    };
     if (customerEmail) init.customerEmail = customerEmail;
     post(init);
   };
@@ -363,6 +375,9 @@ function validateOptions(options: unknown): asserts options is OpenOptions {
   }
   if (o.layout !== undefined && o.layout !== "drawer" && o.layout !== "modal") {
     throw new TypeError('DodoCheckout.open: layout must be "drawer" or "modal".');
+  }
+  if (o.quantity !== undefined && !(Number.isInteger(o.quantity) && (o.quantity as number) >= 1 && (o.quantity as number) <= 99)) {
+    throw new TypeError("DodoCheckout.open: quantity must be a whole number from 1 to 99.");
   }
 }
 

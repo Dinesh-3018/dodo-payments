@@ -12,8 +12,6 @@ import {
   validateExpiry,
   validateNumber,
 } from "../card";
-import type { Product } from "../catalog";
-import { formatMoney } from "../money";
 import { CardBrandIcon, LockIcon, Spinner } from "./icons";
 
 export interface FormValues {
@@ -48,7 +46,8 @@ export function validate(values: FormValues): Partial<Record<Key, string>> {
 interface Props {
   values: FormValues;
   onChange: (values: FormValues) => void;
-  product: Product;
+  /** Formatted total, already multiplied by quantity. */
+  total: string;
   merchantName: string;
   processing: boolean;
   initialFocus: Key;
@@ -62,7 +61,7 @@ function shouldAutofocus(): boolean {
   return matchMedia("(pointer: fine)").matches || window.innerWidth > 640;
 }
 
-export function CheckoutForm({ values, onChange, product, merchantName, processing, initialFocus, emailPrefilled, onPay }: Props) {
+export function CheckoutForm({ values, onChange, total, merchantName, processing, initialFocus, emailPrefilled, onPay }: Props) {
   const [touched, setTouched] = useState<Partial<Record<Key, boolean>>>({});
   const [submitted, setSubmitted] = useState(false);
   const [editingEmail, setEditingEmail] = useState(!emailPrefilled);
@@ -101,7 +100,10 @@ export function CheckoutForm({ values, onChange, product, merchantName, processi
     onPay(values);
   }
 
-  const blur = (key: Key) => () => setTouched((t) => ({ ...t, [key]: true }));
+  // Leaving a field you never typed in is not a mistake; only a field with content gets judged on blur.
+  const blur = (key: Key) => () => {
+    if (values[key] !== "") setTouched((t) => ({ ...t, [key]: true }));
+  };
 
   /** Backspace in an empty cell walks back to the previous one, the mirror of auto-advance. */
   const backTo = (previous: Key, current: Key) => (event: KeyboardEvent<HTMLInputElement>) => {
@@ -131,8 +133,6 @@ export function CheckoutForm({ values, onChange, product, merchantName, processi
   function onCvc(event: ChangeEvent<HTMLInputElement>) {
     onChange({ ...values, cvc: digitsOnly(event.target.value).slice(0, cvcLength(brand)) });
   }
-
-  const total = formatMoney(product.amount, product.currency);
 
   return (
     <form className="form" onSubmit={handleSubmit} noValidate>
@@ -232,30 +232,8 @@ export function CheckoutForm({ values, onChange, product, merchantName, processi
         </div>
       </fieldset>
 
-      <button
-        type="submit"
-        className={"pay" + (processing ? " is-busy" : "")}
-        aria-busy={processing}
-        aria-disabled={processing}
-        aria-live="polite"
-      >
-        {processing ? (
-          <>
-            <Spinner />
-            <span>{stage}</span>
-          </>
-        ) : (
-          <span>Pay {total}</span>
-        )}
-      </button>
       </section>
 
-      <p className="secure">
-        <LockIcon />
-        <span>
-          Card details are encrypted and go straight to Dodo. {merchantName} never sees them.
-        </span>
-      </p>
       <p className="terms">
         By paying you agree to Dodo's{" "}
         <a href="https://dodopayments.com/terms" target="_blank" rel="noreferrer">
@@ -267,6 +245,31 @@ export function CheckoutForm({ values, onChange, product, merchantName, processi
         </a>
         .
       </p>
+
+      <div className="dock">
+        <button
+          type="submit"
+          className={"pay" + (processing ? " is-busy" : "")}
+          aria-busy={processing}
+          aria-disabled={processing}
+          aria-live="polite"
+        >
+          {processing ? (
+            <>
+              <Spinner />
+              <span>{stage}</span>
+            </>
+          ) : (
+            <span>Pay {total}</span>
+          )}
+        </button>
+        <p className="secure">
+          <LockIcon />
+          <span>
+            Card details are encrypted and go straight to Dodo. {merchantName} never sees them.
+          </span>
+        </p>
+      </div>
     </form>
   );
 }

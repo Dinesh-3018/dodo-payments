@@ -10,6 +10,7 @@ const settings = {
   prefill: false,
   identity: false,
   radius: false,
+  quantity: 1,
 };
 
 let current: CheckoutHandle | null = null;
@@ -18,6 +19,7 @@ function buildOptions(productId: string): OpenOptions {
   const options: OpenOptions = {
     productId,
     layout: settings.layout,
+    ...(settings.quantity > 1 ? { quantity: settings.quantity } : {}),
     onSuccess: ({ sessionId }) => {
       log("onSuccess", { sessionId });
       setStatus("Paid", "is-paid");
@@ -69,6 +71,14 @@ function openCheckout(productId = "prod_123"): CheckoutHandle | null {
 const $ = <T extends Element>(selector: string) => document.querySelector<T>(selector)!;
 
 $("#buy").addEventListener("click", () => openCheckout());
+
+document.querySelectorAll<HTMLButtonElement>("[data-qty]").forEach((button) => {
+  button.addEventListener("click", () => {
+    settings.quantity = Math.min(10, Math.max(1, settings.quantity + Number(button.dataset.qty)));
+    $("#qty").textContent = String(settings.quantity);
+    renderSnippet();
+  });
+});
 
 document.querySelectorAll<HTMLButtonElement>("[data-layout]").forEach((button) => {
   button.addEventListener("click", () => {
@@ -154,6 +164,7 @@ $("#clear").addEventListener("click", () => {
 function renderSnippet() {
   const options = buildOptions("prod_123");
   const lines: string[] = ["DodoCheckout.open({", `  productId: "prod_123",`];
+  if (options.quantity) lines.push(`  quantity: ${options.quantity},`);
   if (options.layout) lines.push(`  layout: "${options.layout}",`);
   if (options.theme) lines.push(`  theme: ${JSON.stringify(options.theme)},`);
   if (options.merchant) lines.push(`  merchant: ${JSON.stringify(options.merchant)},`);

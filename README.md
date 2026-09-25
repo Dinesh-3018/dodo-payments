@@ -33,6 +33,10 @@ One canvas, white cards, one accent. The panel floats off the edge of the page l
 
 Friction taken out on purpose: a pre-filled email shows as a line with a Change link instead of a field, the phone keyboard is not opened until the buyer taps, Backspace walks back across fields the way Tab walks forward, the failure screen restates the amount so nobody has to reopen the summary, and nothing on screen changes size when an error appears.
 
+**Perks, and when the confetti is allowed.** The order card has a quantity stepper and a perks track (thresholds come from the store's config, here the fake catalogue): free shipping from $15, a free sleeve from $40, free engraving from $70. Badges tick as the total crosses each line and a line under the track says how far the next one is. Confetti is a reward, not a greeting: it rains across the panel when a perk is crossed, once on open if a perk is already earned, and bursts when the payment succeeds. It never fires just because the panel opened.
+
+**Why email and not something else.** The brief defines the checkout as product, email, card, pay. Beyond that, a card payment needs a receipt destination and email is the only one that works everywhere with one tap of autofill. Phone plus OTP adds a screen, a wait and a failure mode, and only pays off with a shopper network behind it; no contact at all leaves the buyer with no proof that money moved. So the field stays, and everything around it is there to make it cost almost nothing.
+
 ## What is here
 
 ```
@@ -116,6 +120,7 @@ An allow-list, validated in the SDK (so developers get a warning) and again in t
 ```ts
 DodoCheckout.open({
   productId: "prod_123",
+  quantity: 2,                             // 1 to 99, default 1; the customer can change it inside
   layout: "drawer" | "modal",              // drawer slides from the right and is a full-height sheet on phones; modal is centred and a bottom sheet on phones
   theme: { accent: "#0f766e", radius: "none" | "small" | "medium" | "large", font: "Inter, sans-serif" },
   merchant: { site: "https://store.example", name: "Store", logo: "https://store.example/logo.png" },

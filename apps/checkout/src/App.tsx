@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createBridge, type Bridge } from "./bridge";
 import type { InitMessage } from "./protocol";
-import { fetchProduct, type Product } from "./catalog";
+import { fetchProduct, perkProgress, MAX_QUANTITY, STORE_PERKS, type Product } from "./catalog";
+import { rain } from "./confetti";
 import { charge, type ChargeFailure } from "./gateway";
 import { applyTheme, resolveBrand, type ResolvedBrand } from "./theme";
 import { formatMoney } from "./money";
@@ -36,6 +37,7 @@ export function App() {
   const [product, setProduct] = useState<Product | null>(null);
   const [brand, setBrand] = useState<ResolvedBrand | null>(null);
   const [form, setForm] = useState<FormValues>(emptyForm);
+  const [quantity, setQuantity] = useState(1);
   const [announce, setAnnounce] = useState("");
 
   const bridge = useRef<Bridge | null>(null);
@@ -86,6 +88,7 @@ export function App() {
     if (!init) return;
     let cancelled = false;
     document.body.classList.add(`layout-${init.layout}`);
+    setQuantity(Math.min(MAX_QUANTITY, Math.max(1, init.quantity)));
     setPhase({ status: "loading" });
     if (init.customerEmail) setForm((f) => ({ ...f, email: init.customerEmail ?? f.email }));
 
@@ -123,6 +126,26 @@ export function App() {
     return () => observer.disconnect();
   }, [init, send, phase.status]);
 
+  // ---- perks: celebrate when one is earned, and once on open if already earned ---
+
+  const total = product ? product.amount * quantity : 0;
+  const progress = perkProgress(total, STORE_PERKS);
+  const seenUnlocked = useRef<number | null>(null);
+  useEffect(() => {
+    if (phase.status !== "ready") return;
+    if (seenUnlocked.current === null) {
+      seenUnlocked.current = progress.unlocked;
+      if (progress.unlocked > 0) {
+        const timer = setTimeout(() => rain(), 450); // let the panel finish sliding in
+        return () => clearTimeout(timer);
+      }
+      return;
+    }
+    if (progress.unlocked > seenUnlocked.current) rain();
+    seenUnlocked.current = progress.unlocked;
+    return;
+  }, [phase.status, progress.unlocked]);
+
   // ---- pay ------------------------------------------------------------------
 
   const pay = useCallback(
@@ -155,6 +178,7 @@ export function App() {
 
   const merchantName = brand?.name ?? (init ? hostLabel(init.hostOrigin) : "");
   const processing = phase.status === "processing";
+  const totalLabel = product ? formatMoney(total, product.currency) : "";
 
   return (
     <main className="app">
@@ -178,7 +202,7 @@ export function App() {
           <Screen key="failed">
             <FailedScreen
               failure={phase.failure}
-              amount={product ? formatMoney(product.amount, product.currency) : ""}
+              amount={totalLabel}
               onRetry={() => void pay(form)}
               onChangeCard={() => {
                 setForm((f) => ({ ...f, number: "", expiry: "", cvc: "" }));
@@ -189,7 +213,7 @@ export function App() {
         ) : phase.status === "succeeded" && product ? (
           <Screen key="succeeded">
             <SuccessScreen
-              amount={formatMoney(product.amount, product.currency)}
+              amount={totalLabel}
               merchantName={merchantName}
               email={form.email}
               brand={phase.brand}
@@ -199,11 +223,18 @@ export function App() {
           </Screen>
         ) : product ? (
           <Screen key="form">
-            <Summary product={product} />
+            <Summary
+              product={product}
+              quantity={quantity}
+              onQuantityChange={(q) => setQuantity(Math.min(MAX_QUANTITY, Math.max(1, q)))}
+              perks={STORE_PERKS}
+              progress={progress}
+              disabled={processing}
+            />
             <CheckoutForm
               values={form}
               onChange={setForm}
-              product={product}
+              total={totalLabel}
               merchantName={merchantName}
               processing={processing}
               initialFocus={phase.status === "ready" ? phase.focus : "email"}
