@@ -1,4 +1,4 @@
-import { extractBrand, BrandError, type Brand } from "./extract";
+import { extractBrand, BrandError, type Brand } from "./extract.js";
 
 const CACHE_TTL_MS = 60 * 60 * 1000;
 const CACHE_MAX = 500;

@@ -1,7 +1,7 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { handleBrandRequest, brandResponseHeaders } from "./src/brand/handler";
+import { handleBrandRequest, brandResponseHeaders } from "./src/brand/handler.js";
 
 const PORT = 5174;
 const SELF = [`http://localhost:${PORT}`, `http://127.0.0.1:${PORT}`, "http://localhost:5173", "http://127.0.0.1:5173"];

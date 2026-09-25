@@ -302,8 +302,9 @@ function pickLogo(head: string, base: URL): string | undefined {
     ...sorted(withHref.filter((l) => l.rel.includes("apple-touch-icon"))).map((l) => l.href),
     metaContent(head, "property", "og:logo"),
     ...sorted(withHref.filter((l) => /(^|\s)icon(\s|$)/.test(l.rel) && (svg(l.href) || l.sizes >= 96))).map((l) => l.href),
-    headerLogoImage(head),
+    // A square mark beats a wide wordmark in a small tile, so favicons come before header images.
     ...sorted(withHref.filter((l) => /(^|\s)(icon|shortcut icon)(\s|$)/.test(l.rel))).map((l) => l.href),
+    headerLogoImage(head),
   ];
   for (const href of candidates) {
     if (!href) continue;
