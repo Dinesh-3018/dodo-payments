@@ -1,47 +1,11 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
-import {
-  cvcLength,
-  detectBrand,
-  digitsOnly,
-  formatCardNumber,
-  formatExpiry,
-  luhn,
-  numberLength,
-  validateCvc,
-  validateEmail,
-  validateExpiry,
-  validateNumber,
-} from "../card";
+import { cvcLength, detectBrand, digitsOnly, formatCardNumber, formatExpiry, luhn, numberLength, validateExpiry } from "../card";
+import { validate, type FieldKey, type FormValues } from "../schema";
+export { emptyForm, type FormValues } from "../schema";
 import { CardBrandIcon, LockIcon, Spinner } from "./icons";
 
-export interface FormValues {
-  email: string;
-  /** Digits only. */
-  number: string;
-  /** Digits only, MMYY. */
-  expiry: string;
-  /** Digits only. */
-  cvc: string;
-}
-
-export const emptyForm: FormValues = { email: "", number: "", expiry: "", cvc: "" };
-
-type Key = keyof FormValues;
+type Key = FieldKey;
 const ORDER: Key[] = ["email", "number", "expiry", "cvc"];
-
-export function validate(values: FormValues): Partial<Record<Key, string>> {
-  const errors: Partial<Record<Key, string>> = {};
-  const brand = detectBrand(values.number);
-  const email = validateEmail(values.email);
-  const number = validateNumber(values.number);
-  const expiry = validateExpiry(values.expiry);
-  const cvc = validateCvc(values.cvc, brand);
-  if (email) errors.email = email;
-  if (number) errors.number = number;
-  if (expiry) errors.expiry = expiry;
-  if (cvc) errors.cvc = cvc;
-  return errors;
-}
 
 interface Props {
   values: FormValues;

@@ -52,21 +52,6 @@ export function luhn(digits: string): boolean {
   return digits.length > 0 && sum % 10 === 0;
 }
 
-export function validateEmail(value: string): string | null {
-  const v = value.trim();
-  if (!v) return "Enter your email so we can send the receipt.";
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) return "Enter a valid email like name@example.com.";
-  return null;
-}
-
-export function validateNumber(digits: string): string | null {
-  if (!digits) return "Enter your card number.";
-  const brand = detectBrand(digits);
-  if (digits.length < numberLength(brand)) return "Your card number is incomplete.";
-  if (!luhn(digits)) return "This card number doesn't look right. Check it and try again.";
-  return null;
-}
-
 export function validateExpiry(digits: string, now = new Date()): string | null {
   if (digits.length < 4) return "Expiry is incomplete.";
   const month = Number(digits.slice(0, 2));
@@ -79,9 +64,3 @@ export function validateExpiry(digits: string, now = new Date()): string | null 
   return null;
 }
 
-export function validateCvc(digits: string, brand: CardBrand): string | null {
-  const need = cvcLength(brand);
-  if (digits.length < need) return "CVC is incomplete.";
-  if (digits.length > need) return `CVC should be ${need} digits.`;
-  return null;
-}
