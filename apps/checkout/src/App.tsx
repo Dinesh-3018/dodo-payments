@@ -55,6 +55,9 @@ export function App() {
   phaseRef.current = phase;
   const quantityRef = useRef(quantity);
   quantityRef.current = quantity;
+  const formRef = useRef(form);
+  formRef.current = form;
+  const availableRef = useRef<number | null>(null);
   const declines = useRef(0);
   const lastActivity = useRef(performance.now());
 
@@ -67,6 +70,9 @@ export function App() {
     setTimeout(() => setAnnounce(text), 0);
   }, []);
 
+  const answerChallengeRef = useRef<(id: string, approved: boolean) => void>(() => undefined);
+  const answerChallenge = useCallback((id: string, approved: boolean) => answerChallengeRef.current(id, approved), []);
+
   const requestClose = useCallback(() => {
     const current = phaseRef.current;
     switch (current.status) {
@@ -77,8 +83,7 @@ export function App() {
         return;
       case "challenge":
         // Closing the bank's check is the same as failing it.
-        completeChallenge(current.paymentId, false);
-        setPhase({ status: "processing", paymentId: current.paymentId });
+        answerChallenge(current.paymentId, false);
         return;
       case "unconfirmed":
         // The host must know the outcome is unknown before we go.
@@ -97,7 +102,7 @@ export function App() {
       default:
         send({ type: "close", reason: "user" });
     }
-  }, [send, say]);
+  }, [send, say, answerChallenge]);
 
   useEffect(() => {
     const b = createBridge({
@@ -169,6 +174,9 @@ export function App() {
     const timer = setInterval(() => {
       const s = phaseRef.current.status;
       if ((s === "ready" || s === "failed") && performance.now() - lastActivity.current > IDLE_LIMIT_MS) {
+        // The screen says the card details are gone, so they are gone now, not on "Start again".
+        setForm((f) => ({ ...f, number: "", expiry: "", cvc: "" }));
+        declines.current = 0;
         setPhase({ status: "expired" });
       }
     }, 30_000);
@@ -202,9 +210,10 @@ export function App() {
   // ---- pay ------------------------------------------------------------------
 
   const fail = useCallback(
-    (code: ChargeFailure | "offline") => {
+    (code: ChargeFailure | "offline", available?: number) => {
       if (code === "payment_declined") declines.current += 1;
-      setPhase({ status: "failed", failure: failureFor(code, declines.current, product?.stock ?? 0) });
+      availableRef.current = available ?? null;
+      setPhase({ status: "failed", failure: failureFor(code, declines.current, available ?? product?.stock ?? 0) });
       send({ type: "error", code, message: ERROR_MESSAGES[code], terminal: false });
     },
     [product, send],
@@ -233,11 +242,18 @@ export function App() {
         setPhase({ status: "succeeded", brand: detectBrand(values.number), last4: values.number.slice(-4) });
         send({ type: "success" });
       } else {
-        fail(outcome.code);
+        fail(outcome.code, outcome.available);
       }
     },
     [fail, send],
   );
+
+  // One path for approve, decline and abandon, so none of them can forget to wait for the answer.
+  answerChallengeRef.current = (id: string, approved: boolean) => {
+    completeChallenge(id, approved);
+    setPhase({ status: "processing", paymentId: id });
+    void settle(id, formRef.current);
+  };
 
   const pay = useCallback(
     async (values: FormValues, qty = quantityRef.current) => {
@@ -247,7 +263,7 @@ export function App() {
         fail("offline"); // nothing was sent, so retrying is safe
         return;
       }
-      const { id, challenge } = submitPayment(values.number, qty, product.stock);
+      const { id, challenge } = submitPayment(values.number, qty, product.id, product.stock);
       send({ type: "dismissable", value: false });
       if (challenge) {
         setPhase({ status: "challenge", paymentId: id });
@@ -341,16 +357,8 @@ export function App() {
             <ChallengeScreen
               amount={totalLabel}
               merchantName={merchantName}
-              onApprove={() => {
-                completeChallenge(phase.paymentId, true);
-                setPhase({ status: "processing", paymentId: phase.paymentId });
-                void settle(phase.paymentId, form);
-              }}
-              onDecline={() => {
-                completeChallenge(phase.paymentId, false);
-                setPhase({ status: "processing", paymentId: phase.paymentId });
-                void settle(phase.paymentId, form);
-              }}
+              onApprove={() => answerChallenge(phase.paymentId, true)}
+              onDecline={() => answerChallenge(phase.paymentId, false)}
             />
           </Screen>
         ) : phase.status === "failed" && product ? (
@@ -363,7 +371,7 @@ export function App() {
               last4={form.number.slice(-4)}
               onRetry={() => {
                 if (phase.failure.code === "insufficient_stock") {
-                  const qty = maxQuantity(product);
+                  const qty = Math.max(1, Math.min(maxQuantity(product), availableRef.current ?? maxQuantity(product)));
                   setQuantity(qty);
                   void pay(form, qty);
                 } else {
@@ -375,6 +383,7 @@ export function App() {
                 setForm((f) => ({ ...f, number: "", expiry: "", cvc: "" }));
                 setPhase({ status: "ready", focus: "number" });
               }}
+              onClose={requestClose}
             />
           </Screen>
         ) : phase.status === "succeeded" && product ? (

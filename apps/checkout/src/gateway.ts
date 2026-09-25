@@ -6,7 +6,47 @@
  * here guesses. The test cards from the brief drive the outcome.
  */
 export type ChargeFailure = "payment_declined" | "payment_failed" | "authentication_failed" | "insufficient_stock";
-export type Outcome = { ok: true; paymentId: string } | { ok: false; code: ChargeFailure };
+export type Outcome = { ok: true; paymentId: string } | { ok: false; code: ChargeFailure; available?: number };
+
+/**
+ * Live stock, the part of the fake backend that survives the iframe being
+ * torn down between opens. Kept in the checkout origin's storage and reset
+ * after half an hour so a demo never stays sold out.
+ */
+const STOCK_KEY = "dodo.fake.stock";
+const STOCK_RESET_MS = 30 * 60 * 1000;
+
+function readStock(): { at: number; counts: Record<string, number> } {
+  try {
+    const raw = localStorage.getItem(STOCK_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as { at: number; counts: Record<string, number> };
+      if (Date.now() - parsed.at < STOCK_RESET_MS) return parsed;
+    }
+  } catch {
+    /* storage unavailable: behave as if nothing was sold */
+  }
+  return { at: Date.now(), counts: {} };
+}
+
+function writeStock(state: { at: number; counts: Record<string, number> }) {
+  try {
+    localStorage.setItem(STOCK_KEY, JSON.stringify(state));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function liveStock(productId: string, catalogueStock: number): number {
+  const state = readStock();
+  return state.counts[productId] ?? catalogueStock;
+}
+
+function takeStock(productId: string, catalogueStock: number, quantity: number) {
+  const state = readStock();
+  state.counts[productId] = Math.max(0, (state.counts[productId] ?? catalogueStock) - quantity);
+  writeStock(state);
+}
 
 export const CHALLENGE_CARD = "4000000000003220";
 
@@ -14,6 +54,9 @@ interface PendingPayment {
   id: string;
   settleAt: number;
   outcome: Outcome;
+  productId: string;
+  catalogueStock: number;
+  quantity: number;
 }
 
 const pending = new Map<string, PendingPayment>();
@@ -27,7 +70,7 @@ export function isOffline(): boolean {
  * Send the charge. Call only when online: once this returns, the charge is
  * on its way and the only honest thing left to do is wait for the answer.
  */
-export function submitPayment(cardDigits: string, quantity: number, stock: number): { id: string; challenge: boolean } {
+export function submitPayment(cardDigits: string, quantity: number, productId: string, catalogueStock: number): { id: string; challenge: boolean } {
   const attempt = (attemptsByCard.get(cardDigits) ?? 0) + 1;
   attemptsByCard.set(cardDigits, attempt);
   const id = "pay_" + Math.random().toString(36).slice(2, 12);
@@ -37,13 +80,14 @@ export function submitPayment(cardDigits: string, quantity: number, stock: numbe
   const slow = cardDigits === "4000000000000341" && attempt === 1;
   const delay = slow ? 5200 : 1100 + Math.random() * 700;
 
+  const available = liveStock(productId, catalogueStock);
   let outcome: Outcome;
-  if (quantity > stock) outcome = { ok: false, code: "insufficient_stock" };
+  if (quantity > available) outcome = { ok: false, code: "insufficient_stock", available };
   else if (cardDigits === "4000000000000002") outcome = { ok: false, code: "payment_declined" };
   else if (slow) outcome = { ok: false, code: "payment_failed" };
   else outcome = { ok: true, paymentId: id };
 
-  pending.set(id, { id, settleAt: performance.now() + delay, outcome });
+  pending.set(id, { id, settleAt: performance.now() + delay, outcome, productId, catalogueStock, quantity });
   return { id, challenge: cardDigits === CHALLENGE_CARD };
 }
 
@@ -74,6 +118,7 @@ export async function awaitOutcome(id: string, onWaitingForNetwork: (waiting: bo
     await wait(Math.min(remaining, 150));
   }
   pending.delete(id);
+  if (payment.outcome.ok) takeStock(payment.productId, payment.catalogueStock, payment.quantity);
   return payment.outcome;
 }
 

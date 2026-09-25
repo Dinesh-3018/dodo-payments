@@ -58,6 +58,7 @@ await page.click("#buy");
 await waitOverlay(true);
 let frame = await checkoutFrame();
 await frame.getByLabel("Email").waitFor({ timeout: 10000 });
+await frame.evaluate(() => localStorage.clear()); // the fake backend's live stock starts fresh
 await page.waitForTimeout(400);
 await page.screenshot({ path: `${SHOTS}/01-drawer-form.png` });
 ok("brand name from site", (await frame.locator(".hdr-name").textContent())?.includes("Lakshmi"));
@@ -198,6 +199,11 @@ await frame.getByText("Your bank didn't confirm the payment").waitFor({ timeout:
 ok("declined challenge -> authentication_failed", (await lastLog()).includes("authentication_failed"));
 await frame.getByRole("button", { name: "Try again with this card" }).click();
 await frame.getByText("Your bank wants to confirm it's you").waitFor({ timeout: 6000 });
+await frame.press("body", "Escape");
+await frame.getByText("Your bank didn't confirm the payment").waitFor({ timeout: 6000 });
+ok("escape on the bank check counts as a decline, never a stuck spinner", true);
+await frame.getByRole("button", { name: "Try again with this card" }).click();
+await frame.getByText("Your bank wants to confirm it's you").waitFor({ timeout: 6000 });
 await frame.getByRole("button", { name: "Approve" }).click();
 await frame.getByText("Payment complete").waitFor({ timeout: 8000 });
 ok("approved challenge -> success", true);
@@ -221,15 +227,40 @@ await page.screenshot({ path: `${SHOTS}/15-decline-limit.png` });
 await page.keyboard.press("Escape");
 await waitOverlay(false);
 
-// 3f. stock cap
-await page.click("#buy");
-await waitOverlay(true);
-frame = await checkoutFrame();
-await frame.getByLabel("Email").waitFor({ timeout: 10000 });
+// 3f. stock cap, and stock that actually runs out (ghee: five in stock)
+const openGhee = async () => {
+  await page.click('[data-buy="prod_456"]');
+  await waitOverlay(true);
+  frame = await checkoutFrame();
+  await frame.getByLabel("Email").waitFor({ timeout: 10000 });
+};
+await openGhee();
 for (let i = 0; i < 9; i++) await frame.getByRole("button", { name: "Increase quantity" }).click({ force: true }).catch(() => {});
-ok("stepper stops at stock with a note", (await frame.locator(".stepper-value").textContent()) === "8" && (await frame.locator(".stepper-note").textContent())?.includes("Only 8 left") === true && (await frame.getByRole("button", { name: "Increase quantity" }).isDisabled()));
-await page.keyboard.press("Escape");
+ok("stepper stops at stock with a note", (await frame.locator(".stepper-value").textContent()) === "5" && (await frame.locator(".stepper-note").textContent())?.includes("Only 5 left") === true && (await frame.getByRole("button", { name: "Increase quantity" }).isDisabled()));
+await frame.getByRole("button", { name: "Decrease quantity" }).click();
+await fillCard(frame, "4242424242424242");
+await frame.getByRole("button", { name: /^Pay/ }).click();
+await frame.getByText("Payment complete").waitFor({ timeout: 8000 });
+await frame.getByRole("button", { name: "Done" }).click();
 await waitOverlay(false);
+await openGhee();
+for (let i = 0; i < 4; i++) await frame.getByRole("button", { name: "Increase quantity" }).click();
+await fillCard(frame, "4242424242424242");
+await frame.getByRole("button", { name: /^Pay/ }).click();
+await frame.getByText("Only 1 left").waitFor({ timeout: 8000 });
+ok("stock re-checked at pay time: onError insufficient_stock", (await lastLog()).includes("insufficient_stock"));
+await frame.getByRole("button", { name: "Pay for 1" }).click();
+await frame.getByText("Payment complete").waitFor({ timeout: 8000 });
+ok("pay for what is left succeeds", true);
+await frame.getByRole("button", { name: "Done" }).click();
+await waitOverlay(false);
+await openGhee();
+await fillCard(frame, "4242424242424242");
+await frame.getByRole("button", { name: /^Pay/ }).click();
+await frame.getByText("Sold out").waitFor({ timeout: 8000 });
+await frame.getByRole("button", { name: "Close", exact: true }).click();
+await waitOverlay(false);
+ok("sold out closes with reason user", (await lastLog()).includes('"reason":"user"'));
 
 // 4. double open
 await page.click('[data-edge="double"]');
@@ -295,6 +326,28 @@ ok("backspace over space removes digit 4", (await frame.getByLabel("Card number"
 await page.keyboard.press("Escape");
 await waitOverlay(false);
 
+// 6d. host closes while a payment is in flight: the host is told the outcome is unknown
+await page.evaluate(() => {
+  window.__ev = [];
+  window.__h = window.DodoCheckout.open({ productId: "prod_123", onError: (e) => window.__ev.push("error:" + e.code), onClose: (e) => window.__ev.push("close:" + e.reason), onSuccess: () => window.__ev.push("success") });
+});
+await waitOverlay(true);
+frame = await checkoutFrame();
+await frame.getByLabel("Email").waitFor({ timeout: 10000 });
+await fillCard(frame, "4242424242424242");
+await frame.getByRole("button", { name: /^Pay/ }).click();
+await frame.locator(".pay.is-busy").waitFor();
+await page.waitForTimeout(150);
+await page.evaluate(() => window.__h.close());
+await waitOverlay(false);
+ok("host close mid-payment -> payment_unconfirmed then close(host)", JSON.stringify(await page.evaluate(() => window.__ev)) === JSON.stringify(["error:payment_unconfirmed", "close:host"]), JSON.stringify(await page.evaluate(() => window.__ev)));
+
+// 6e. the legal links under the form exist
+for (const href of ["https://dodopayments.com/legal/buyer-terms", "https://dodopayments.com/legal/privacy-policy"]) {
+  const r = await fetch(href, { redirect: "follow" }).catch(() => ({ ok: false, status: 0 }));
+  ok(`legal link responds: ${href.split("/").pop()}`, r.ok, String(r.status));
+}
+
 // 7. bad call throws synchronously
 await page.click('[data-edge="badcall"]');
 ok("bad call throws TypeError", (await lastLog()).includes("TypeError"));
@@ -330,6 +383,7 @@ frame = await checkoutFrame();
 await frame.getByLabel("Card number").waitFor({ timeout: 10000 });
 const ink = await frame.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--accent-ink").trim());
 ok("light accent gets dark text", ink === "#0b0f14", ink);
+ok("light accent gets an ink focus ring", (await frame.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--focus").trim())) === "#0a0a0a");
 await page.waitForTimeout(300);
 await page.screenshot({ path: `${SHOTS}/10-modal-lime.png` });
 await page.keyboard.press("Escape");
@@ -505,9 +559,11 @@ ok("standalone notice", true);
 await solo.close();
 
 // 16. rate limit, last because it uses up this caller's minute
+const cachedStatus = (await fetch(`${CHECKOUT}/api/brand?url=${encodeURIComponent(DEMO)}`)).status;
 let rateStatus = 200;
-for (let i = 0; i < 40 && rateStatus !== 429; i++) rateStatus = (await fetch(`${CHECKOUT}/api/brand?url=${encodeURIComponent(DEMO)}`)).status;
-ok("brand: rate limited within 40 lookups in a minute", rateStatus === 429);
+for (let i = 0; i < 40 && rateStatus !== 429; i++) rateStatus = (await fetch(`${CHECKOUT}/api/brand?url=${encodeURIComponent(`http://127.0.0.1:5173/nope-${i}`)}`)).status;
+ok("brand: rate limited within 40 uncached lookups in a minute", rateStatus === 429);
+ok("brand: cached answers stay free after the limit", cachedStatus === 200 && (await fetch(`${CHECKOUT}/api/brand?url=${encodeURIComponent(DEMO)}`)).status === 200);
 
 await browser.close();
 const passed = results.filter((r) => r.pass).length;

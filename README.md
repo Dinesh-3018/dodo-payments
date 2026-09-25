@@ -53,7 +53,7 @@ Cards to try:
 | 4000 0000 0000 0341 | fails once, slowly, then pays on retry |
 | 4000 0000 0000 3220 | your bank wants a word first |
 
-Also fun: press Buy twice, pull the network cable mid-payment, hit Escape while it's paying, try to buy nine packets when there are eight. It handles all of it and tells the host page the truth each time.
+Also fun: press Buy twice, pull the network cable mid-payment, hit Escape while it's paying, buy the ghee until it runs out (there are five, and the shop actually counts). It handles all of it and tells the host page the truth each time.
 
 ## How the pieces talk
 

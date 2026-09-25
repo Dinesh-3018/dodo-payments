@@ -246,11 +246,11 @@ export function CheckoutForm({ values, onChange, total, merchantName, processing
       </p>
       <p className="terms">
         By paying you agree to Dodo's{" "}
-        <a href="https://dodopayments.com/terms" target="_blank" rel="noreferrer">
+        <a href="https://dodopayments.com/legal/buyer-terms" target="_blank" rel="noreferrer">
           Terms
         </a>{" "}
         and{" "}
-        <a href="https://dodopayments.com/privacy" target="_blank" rel="noreferrer">
+        <a href="https://dodopayments.com/legal/privacy-policy" target="_blank" rel="noreferrer">
           Privacy Policy
         </a>
         .

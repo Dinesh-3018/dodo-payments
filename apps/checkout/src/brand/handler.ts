@@ -31,15 +31,16 @@ export async function handleBrandRequest(
   options: { allowLoopback: boolean; caller: string },
 ): Promise<{ status: number; body: BrandResponse }> {
   if (!target) return { status: 400, body: { ok: false, code: "invalid_url", message: "Missing url parameter." } };
-  if (rateLimited(options.caller)) {
-    return { status: 429, body: { ok: false, code: "rate_limited", message: "Too many lookups from this address. Try again in a minute." } };
-  }
 
+  // Cached answers are free; only lookups that fetch a third-party site count against the caller.
   const key = cacheKey(target);
   const cached = key ? cache.get(key) : undefined;
   if (cached && key) {
     if (Date.now() - cached.at < CACHE_TTL_MS) return { status: 200, body: cached.body };
     cache.delete(key);
+  }
+  if (rateLimited(options.caller)) {
+    return { status: 429, body: { ok: false, code: "rate_limited", message: "Too many lookups from this address. Try again in a minute." } };
   }
 
   try {

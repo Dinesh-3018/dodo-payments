@@ -58,6 +58,9 @@ export function applyTheme(accent: string, radius: Radius | undefined, font: str
   const safeAccent = HEX_COLOUR.test(accent) ? accent : DEFAULT_ACCENT;
   style.setProperty("--accent", safeAccent);
   style.setProperty("--accent-ink", readableOn(safeAccent));
+  // A lime accent makes a lime focus ring on white invisible. Below 3:1 the
+  // ring falls back to ink; the button keeps the brand colour.
+  style.setProperty("--focus", 1.05 / (luminance(safeAccent) + 0.05) >= 3 ? safeAccent : "#0a0a0a");
   if (radius) style.setProperty("--radius", RADIUS[radius]);
   if (font) style.setProperty("--font", font);
 }

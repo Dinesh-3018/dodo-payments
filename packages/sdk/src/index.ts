@@ -74,7 +74,7 @@ export interface Merchant {
 
 export interface OpenOptions {
   productId: string;
-  /** Units of the product, 1 to 99. Default 1. The customer can still change it inside the checkout. */
+  /** Units of the product, 1 to 10. Default 1. The customer can still change it inside the checkout. */
   quantity?: number;
   /** "drawer" (default) slides in from the right. "modal" is centred. On phones the drawer is a full-height sheet and the modal a bottom sheet. */
   layout?: Layout;
@@ -89,7 +89,12 @@ export interface OpenOptions {
 
 export interface CheckoutHandle {
   readonly sessionId: string;
-  /** Closes the checkout now. Fires onClose({ reason: "host" }). */
+  /**
+   * Closes the checkout now. Fires onClose({ reason: "host" }). If a payment
+   * is in flight at that moment, onError({ code: "payment_unconfirmed" })
+   * fires first: the charge may have gone through, and only the session id
+   * can tell you.
+   */
   close(): void;
 }
 
@@ -191,7 +196,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RADII: readonly Radius[] = ["none", "small", "medium", "large"];
 
 export function sanitizeQuantity(value: unknown): number {
-  return Number.isInteger(value) && (value as number) >= 1 && (value as number) <= 99 ? (value as number) : 1;
+  return Number.isInteger(value) && (value as number) >= 1 && (value as number) <= 10 ? (value as number) : 1;
 }
 
 export function sanitizeLayout(value: unknown): Layout {
@@ -284,8 +289,8 @@ function validateOptions(options: unknown): asserts options is OpenOptions {
   if (o.layout !== undefined && o.layout !== "drawer" && o.layout !== "modal") {
     throw new TypeError('DodoCheckout.open: layout must be "drawer" or "modal".');
   }
-  if (o.quantity !== undefined && !(Number.isInteger(o.quantity) && (o.quantity as number) >= 1 && (o.quantity as number) <= 99)) {
-    throw new TypeError("DodoCheckout.open: quantity must be a whole number from 1 to 99.");
+  if (o.quantity !== undefined && !(Number.isInteger(o.quantity) && (o.quantity as number) >= 1 && (o.quantity as number) <= 10)) {
+    throw new TypeError("DodoCheckout.open: quantity must be a whole number from 1 to 10.");
   }
 }
 
@@ -715,7 +720,15 @@ function createSession(options: OpenOptions): { handle: CheckoutHandle; focus():
 
   const handle: CheckoutHandle = Object.freeze({
     sessionId,
-    close: () => finish("host"),
+    close: () =>
+      finish("host", () => {
+        if (ready && !dismissable && !succeeded) {
+          callHost(options.onError, {
+            code: "payment_unconfirmed",
+            message: "The checkout was closed while a payment was in flight. Outcome unknown; check by session id.",
+          });
+        }
+      }),
   });
 
   return { handle, focus: focusFrame };

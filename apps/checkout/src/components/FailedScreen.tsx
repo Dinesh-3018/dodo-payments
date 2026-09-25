@@ -50,6 +50,15 @@ export function failureFor(code: ChargeFailure | "offline", declines = 0, stock 
         canChangeCard: true,
       };
     case "insufficient_stock":
+      if (stock <= 0) {
+        return {
+          code,
+          title: "Sold out",
+          body: "Someone else got the last one while you were here. Nothing was charged.",
+          primary: null,
+          canChangeCard: false,
+        };
+      }
       return {
         code,
         title: `Only ${stock} left`,
@@ -75,9 +84,10 @@ interface Props {
   last4: string;
   onRetry: () => void;
   onChangeCard: () => void;
+  onClose: () => void;
 }
 
-export function FailedScreen({ failure, amount, brand, last4, onRetry, onChangeCard }: Props) {
+export function FailedScreen({ failure, amount, brand, last4, onRetry, onChangeCard, onClose }: Props) {
   const primary = useRef<HTMLButtonElement>(null);
   useEffect(() => primary.current?.focus(), []);
   return (
@@ -123,9 +133,13 @@ export function FailedScreen({ failure, amount, brand, last4, onRetry, onChangeC
               </button>
             )}
           </>
-        ) : (
+        ) : failure.canChangeCard ? (
           <button ref={primary} type="button" className="pay" onClick={onChangeCard}>
             Use a different card
+          </button>
+        ) : (
+          <button ref={primary} type="button" className="pay" onClick={onClose}>
+            Close
           </button>
         )}
       </div>

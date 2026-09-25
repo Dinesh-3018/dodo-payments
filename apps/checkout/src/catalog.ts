@@ -13,13 +13,17 @@ export interface Product {
 }
 
 const CATALOG: Record<string, Product> = {
-  prod_123: { id: "prod_123", name: "Sambar Powder, 250 g", description: "Stone ground the week you order", amount: 16900, currency: "INR", art: "spice", stock: 8 },
+  prod_123: { id: "prod_123", name: "Sambar Powder, 250 g", description: "Stone ground the week you order", amount: 16900, currency: "INR", art: "spice", stock: 24 },
   prod_456: { id: "prod_456", name: "Cow Ghee, 500 ml", description: "Bilona method, from Erode", amount: 45900, currency: "INR", art: "ghee", stock: 5 },
   prod_789: { id: "prod_789", name: "Ponni Rice, 5 kg", description: "Aged a year, cooks fluffy", amount: 39900, currency: "INR", art: "rice", stock: 10 },
   prod_321: { id: "prod_321", name: "Mango Pickle, 300 g", description: "Sun-dried, gingelly oil", amount: 9900, currency: "INR", art: "pickle", stock: 20 },
 };
 
-/** Pretend catalogue lookup. Latency is real so the loading state is real. */
+/**
+ * Pretend catalogue lookup. Latency is real so the loading state is real. The
+ * stock it returns is the catalogue's snapshot, like a cached product page;
+ * the live count lives in the fake gateway and is checked again at pay time.
+ */
 export async function fetchProduct(id: string): Promise<Product | null> {
   await new Promise((r) => setTimeout(r, 350 + Math.random() * 250));
   return CATALOG[id] ?? null;
