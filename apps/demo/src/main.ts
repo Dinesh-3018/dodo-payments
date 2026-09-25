@@ -72,13 +72,22 @@ const $ = <T extends Element>(selector: string) => document.querySelector<T>(sel
 
 $("#buy").addEventListener("click", () => openCheckout());
 
+const MAX_QUANTITY = 10; // same ceiling as the checkout's own stepper
+
+function renderQuantity() {
+  $("#qty").textContent = String(settings.quantity);
+  $<HTMLButtonElement>('[data-qty="-1"]').disabled = settings.quantity <= 1;
+  $<HTMLButtonElement>('[data-qty="1"]').disabled = settings.quantity >= MAX_QUANTITY;
+}
+
 document.querySelectorAll<HTMLButtonElement>("[data-qty]").forEach((button) => {
   button.addEventListener("click", () => {
-    settings.quantity = Math.min(10, Math.max(1, settings.quantity + Number(button.dataset.qty)));
-    $("#qty").textContent = String(settings.quantity);
+    settings.quantity = Math.min(MAX_QUANTITY, Math.max(1, settings.quantity + Number(button.dataset.qty)));
+    renderQuantity();
     renderSnippet();
   });
 });
+renderQuantity();
 
 document.querySelectorAll<HTMLButtonElement>("[data-layout]").forEach((button) => {
   button.addEventListener("click", () => {
