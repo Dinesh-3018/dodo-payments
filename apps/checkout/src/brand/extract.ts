@@ -99,8 +99,10 @@ export async function extractBrand(input: string, options: ExtractOptions = {}):
 
 function parseTarget(input: string): URL {
   let url: URL;
+  const text = input.trim();
   try {
-    url = new URL(input.trim());
+    // "shop.example.com" means https://shop.example.com; people rarely type the scheme.
+    url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(text) ? text : `https://${text}`);
   } catch {
     throw new BrandError("invalid_url", "Give a full URL like https://example.com.");
   }
