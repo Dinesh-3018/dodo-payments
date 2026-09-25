@@ -4,20 +4,27 @@ import { AlertIcon, LockIcon } from "./icons";
 export function Skeleton({ label }: { label: string }) {
   return (
     <div className="skeleton" role="status" aria-live="polite">
-      <div className="sk-row">
-        <div className="sk sk-art" />
-        <div className="sk-col">
-          <div className="sk sk-line w60" />
-          <div className="sk sk-line w40" />
+      <div className="card">
+        <div className="sk sk-eyebrow" />
+        <div className="sk-row">
+          <div className="sk sk-art" />
+          <div className="sk-col">
+            <div className="sk sk-line w60" />
+            <div className="sk sk-line w40" />
+          </div>
         </div>
+        <div className="sk sk-total" />
       </div>
-      <div className="sk sk-field" />
-      <div className="sk sk-field" />
-      <div className="sk-row">
+      <div className="card">
+        <div className="sk sk-eyebrow" />
         <div className="sk sk-field" />
         <div className="sk sk-field" />
+        <div className="sk-row">
+          <div className="sk sk-field" />
+          <div className="sk sk-field" />
+        </div>
+        <div className="sk sk-button" />
       </div>
-      <div className="sk sk-button" />
       <p className="skeleton-label">{label}</p>
     </div>
   );
@@ -33,10 +40,15 @@ export function ProblemScreen({ title, body, onClose }: { title: string; body: s
       </div>
       <h2 className="state-title">{title}</h2>
       <p className="state-body">{body}</p>
-      <p className="state-note">No money has been taken.</p>
-      <button ref={button} type="button" className="pay" onClick={onClose}>
-        Close
-      </button>
+      <p className="chip">
+        <span className="chip-dot" aria-hidden="true" />
+        No money has been taken
+      </p>
+      <div className="state-actions">
+        <button ref={button} type="button" className="pay" onClick={onClose}>
+          Close
+        </button>
+      </div>
     </div>
   );
 }

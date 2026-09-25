@@ -232,9 +232,13 @@ function createSession(options: OpenOptions): { handle: CheckoutHandle; focus():
         }
         break;
       case "dismissable":
+        // The checkout is alive and telling us its state; a pending fallback
+        // close would be acting on stale information.
         dismissable = message.value === true;
+        clearTimeout(closeFallback);
         break;
       case "nudge":
+        clearTimeout(closeFallback);
         nudge();
         break;
       case "success":
@@ -412,40 +416,46 @@ const STYLES = `
   position: fixed; inset: 0; z-index: 2147483647;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --ease: cubic-bezier(0.2, 0, 0, 1);
+  --surface: #f5f5f5;
 }
 .root.is-exiting { pointer-events: none; }
 .backdrop {
-  position: absolute; inset: 0; background: rgba(10, 13, 18, 0.5);
-  opacity: 0; transition: opacity 220ms ease;
+  position: absolute; inset: 0; background: rgba(10, 10, 10, 0.42);
+  opacity: 0; transition: opacity 240ms ease;
 }
 .root.is-open .backdrop { opacity: 1; }
 .sentinel { position: fixed; width: 1px; height: 1px; opacity: 0; }
 .panel {
-  position: absolute; background: #ffffff; overflow: hidden;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
+  position: absolute; background: var(--surface); overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 32px 80px -24px rgba(0, 0, 0, 0.45);
 }
+/* The drawer floats off the edge like a sheet, not a sidebar glued to the window. */
 .panel.drawer {
-  top: 0; right: 0; bottom: 0; width: min(440px, 100vw);
-  transform: translateX(100%);
-  transition: transform 320ms var(--ease);
+  top: 12px; right: 12px; bottom: 12px; width: min(440px, calc(100vw - 24px));
+  border-radius: 28px;
+  transform: translateX(calc(100% + 24px));
+  transition: transform 360ms var(--ease);
 }
 .root.is-open .panel.drawer { transform: none; }
 .panel.modal {
   left: 50%; top: 50%; width: min(440px, calc(100vw - 32px));
   height: min(var(--h, 600px), calc(100vh - 32px));
   height: min(var(--h, 600px), calc(100dvh - 32px));
-  border-radius: 16px; opacity: 0;
-  transform: translate(-50%, -50%) scale(0.97);
-  transition: transform 240ms var(--ease), opacity 180ms ease, height 200ms var(--ease);
+  border-radius: 28px; opacity: 0;
+  transform: translate(-50%, -50%) scale(0.96);
+  transition: transform 260ms var(--ease), opacity 200ms ease, height 220ms var(--ease);
 }
 .root.is-open .panel.modal { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 @media (max-width: 640px) {
-  .panel.drawer { width: 100vw; transform: translateY(100%); }
+  .panel.drawer {
+    top: 0; right: 0; bottom: 0; width: 100vw; border-radius: 0;
+    transform: translateY(100%);
+  }
   .panel.modal {
     left: 0; top: auto; bottom: 0; width: 100vw; opacity: 1;
     height: min(var(--h, 600px), 92vh);
     height: min(var(--h, 600px), 92dvh);
-    border-radius: 16px 16px 0 0;
+    border-radius: 24px 24px 0 0;
     transform: translateY(100%);
   }
   .root.is-open .panel.modal { transform: none; }
@@ -458,18 +468,18 @@ const STYLES = `
 }
 .frame {
   display: block; width: 100%; height: 100%; border: 0; background: transparent;
-  opacity: 0; transition: opacity 200ms ease;
+  opacity: 0; transition: opacity 220ms ease;
 }
 .root.is-ready .frame { opacity: 1; }
 .loading {
   position: absolute; inset: 0; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 12px;
-  color: #6b7280; font-size: 14px;
+  align-items: center; justify-content: center; gap: 14px;
+  color: #737373; font-size: 14px;
 }
 .root.is-ready .loading { display: none; }
 .spinner {
   width: 22px; height: 22px; border-radius: 50%;
-  border: 2px solid #e5e7eb; border-top-color: #111827;
+  border: 2px solid #e0e0e0; border-top-color: #0a0a0a;
   animation: spin 800ms linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }

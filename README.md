@@ -27,6 +27,12 @@ Every spinner says what it is doing. Every failure says what happened, that no m
 
 And the form is email plus card. No name, no account, no address, no upsell. The amount is on the button. Nothing moves under your thumb: error text has reserved height, the card brand icon lives in a fixed slot, and the panel does not resize while you type.
 
+## How it looks, and why
+
+One canvas, white cards, one accent. The panel floats off the edge of the page like a sheet rather than a sidebar glued to it. Inside, an order card with the item and a large total, and a payment card with filled, borderless inputs and a pill button. The host's brand colour appears in exactly two places, the pay button and the focus ring; everything else is neutral, so a lime store and a navy store both look designed rather than tinted. Type is Geist, bundled with the checkout and served from its own origin (no third-party font requests, and the CSP stays strict), with tabular numerals on every amount.
+
+Friction taken out on purpose: a pre-filled email shows as a line with a Change link instead of a field, the phone keyboard is not opened until the buyer taps, Backspace walks back across fields the way Tab walks forward, the failure screen restates the amount so nobody has to reopen the summary, and nothing on screen changes size when an error appears.
+
 ## What is here
 
 ```

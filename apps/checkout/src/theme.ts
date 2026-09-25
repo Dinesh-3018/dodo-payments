@@ -50,7 +50,7 @@ export async function resolveBrand(init: InitMessage, hostOrigin: string): Promi
   }
 }
 
-const RADIUS: Record<Radius, string> = { none: "0px", small: "6px", medium: "10px", large: "16px" };
+const RADIUS: Record<Radius, string> = { none: "6px", small: "10px", medium: "14px", large: "999px" };
 
 export function applyTheme(accent: string, radius: Radius | undefined, font: string | undefined) {
   const style = document.documentElement.style;

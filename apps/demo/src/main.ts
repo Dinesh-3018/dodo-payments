@@ -1,3 +1,4 @@
+import "@fontsource-variable/geist";
 import type { OpenOptions, CheckoutHandle, Layout } from "@dodo/sdk";
 
 // ---- what the host is allowed to know: exactly what these callbacks receive ----
@@ -169,7 +170,7 @@ function log(event: string, payload: Record<string, unknown>) {
   const time = new Date().toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
   const kind = event.startsWith("on") ? "callback" : event === "open()" ? "call" : "note";
   item.className = `log-item is-${kind}`;
-  item.innerHTML = `<span class="log-time">${time}</span><span class="log-event">${escapeHtml(event)}</span><code class="log-payload">${escapeHtml(JSON.stringify(payload))}</code>`;
+  item.innerHTML = `<span class="log-event">${escapeHtml(event)}</span><span class="log-time">${time}</span><code class="log-payload">${escapeHtml(JSON.stringify(payload))}</code>`;
   const list = $("#log");
   list.prepend(item);
   while (list.children.length > 60) list.lastElementChild?.remove();

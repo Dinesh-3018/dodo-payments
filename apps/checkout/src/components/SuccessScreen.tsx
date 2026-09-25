@@ -23,12 +23,10 @@ export function SuccessScreen({ amount, merchantName, email, brand, last4, onDon
     if (Date.now() - lastBurst < 800) return; // StrictMode double-mount guard
     lastBurst = Date.now();
     const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#111827";
-    const colors = [accent, "#fbbf24", "#60a5fa", "#f472b6", "#34d399"];
-    confetti({ particleCount: 90, spread: 75, startVelocity: 38, origin: { x: 0.5, y: 0.42 }, colors, ticks: 220, scalar: 0.9 });
-    const timer = setTimeout(() => {
-      confetti({ particleCount: 50, spread: 110, startVelocity: 26, origin: { x: 0.5, y: 0.4 }, colors, ticks: 200, scalar: 0.8 });
-    }, 220);
-    return () => clearTimeout(timer);
+    // One burst, in the brand colour and neutrals. A receipt, not a party popper.
+    const colors = [accent, "#0a0a0a", "#737373", "#d4d4d4", "#f5b400"];
+    confetti({ particleCount: 110, spread: 80, startVelocity: 36, origin: { x: 0.5, y: 0.4 }, colors, ticks: 210, scalar: 0.85, gravity: 1.1 });
+    return undefined;
   }, []);
 
   return (
@@ -40,13 +38,28 @@ export function SuccessScreen({ amount, merchantName, email, brand, last4, onDon
         </svg>
       </div>
       <h2 className="state-title">Payment complete</h2>
-      <p className="state-body">
-        {amount} paid to {merchantName.replace(/\.$/, "")}. Receipt sent to <strong>{email}</strong>.
-      </p>
-      <div className="receipt-row">
-        <CardBrandIcon brand={brand} />
-        <span className="mono">•••• {last4}</span>
-      </div>
+      <p className="state-body">You're all set. A receipt is on its way.</p>
+      <dl className="receipt">
+        <div className="receipt-line">
+          <dt>Paid</dt>
+          <dd className="num">{amount}</dd>
+        </div>
+        <div className="receipt-line">
+          <dt>To</dt>
+          <dd>{merchantName}</dd>
+        </div>
+        <div className="receipt-line">
+          <dt>Card</dt>
+          <dd className="receipt-card">
+            <CardBrandIcon brand={brand} />
+            <span className="num">•••• {last4}</span>
+          </dd>
+        </div>
+        <div className="receipt-line">
+          <dt>Receipt</dt>
+          <dd className="receipt-email">{email}</dd>
+        </div>
+      </dl>
       <button ref={done} type="button" className="pay" onClick={onDone}>
         Done
       </button>

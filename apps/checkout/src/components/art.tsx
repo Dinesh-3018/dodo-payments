@@ -1,6 +1,6 @@
 import type { Art } from "../catalog";
 
-/** Small product illustrations. Tinted with the accent so the summary feels owned. */
+/** Small product illustrations in neutral ink, so the host accent appears only where it should. */
 export function ProductArt({ art }: { art: Art }) {
   if (art === "mat") {
     return (
@@ -14,9 +14,9 @@ export function ProductArt({ art }: { art: Art }) {
   }
   return (
     <svg viewBox="0 0 64 64" width="56" height="56" aria-hidden="true">
-      <rect x="14" y="10" width="30" height="42" rx="3" fill="var(--accent)" opacity="0.18" />
-      <rect x="18" y="8" width="30" height="42" rx="3" fill="var(--accent)" opacity="0.5" />
-      <rect x="22" y="6" width="30" height="42" rx="3" fill="var(--accent)" />
+      <rect x="14" y="10" width="30" height="42" rx="3" fill="#0a0a0a" opacity="0.12" />
+      <rect x="18" y="8" width="30" height="42" rx="3" fill="#0a0a0a" opacity="0.32" />
+      <rect x="22" y="6" width="30" height="42" rx="3" fill="#1f1f1f" />
       <rect x="22" y="6" width="5" height="42" rx="1" fill="#000" opacity="0.18" />
       <circle cx="40" cy="20" r="1.4" fill="#fff" opacity="0.8" />
       <circle cx="45" cy="20" r="1.4" fill="#fff" opacity="0.8" />

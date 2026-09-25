@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import {
   cvcLength,
   detectBrand,
@@ -52,12 +52,20 @@ interface Props {
   merchantName: string;
   processing: boolean;
   initialFocus: Key;
+  /** The host pre-filled the email: show it as a line, not a field, until the buyer asks to change it. */
+  emailPrefilled: boolean;
   onPay: (values: FormValues) => void;
 }
 
-export function CheckoutForm({ values, onChange, product, merchantName, processing, initialFocus, onPay }: Props) {
+/** Autofocus steals the screen on phones: the keyboard covers the order before it has been read. */
+function shouldAutofocus(): boolean {
+  return matchMedia("(pointer: fine)").matches || window.innerWidth > 640;
+}
+
+export function CheckoutForm({ values, onChange, product, merchantName, processing, initialFocus, emailPrefilled, onPay }: Props) {
   const [touched, setTouched] = useState<Partial<Record<Key, boolean>>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [editingEmail, setEditingEmail] = useState(!emailPrefilled);
   const refs = {
     email: useRef<HTMLInputElement>(null),
     number: useRef<HTMLInputElement>(null),
@@ -69,9 +77,15 @@ export function CheckoutForm({ values, onChange, product, merchantName, processi
   const visible = (key: Key) => ((touched[key] || submitted) && errors[key]) || undefined;
 
   useEffect(() => {
-    refs[initialFocus].current?.focus();
+    if (shouldAutofocus()) refs[initialFocus].current?.focus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialFocus]);
+
+  // The buyer asked to change a pre-filled email: the field appears, focus goes with it.
+  useEffect(() => {
+    if (emailPrefilled && editingEmail) refs.email.current?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingEmail]);
 
   const stage = useProcessingCopy(processing);
 
@@ -88,6 +102,14 @@ export function CheckoutForm({ values, onChange, product, merchantName, processi
   }
 
   const blur = (key: Key) => () => setTouched((t) => ({ ...t, [key]: true }));
+
+  /** Backspace in an empty cell walks back to the previous one, the mirror of auto-advance. */
+  const backTo = (previous: Key, current: Key) => (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Backspace" && values[current] === "") {
+      event.preventDefault();
+      refs[previous].current?.focus();
+    }
+  };
 
   function onNumber(event: ChangeEvent<HTMLInputElement>) {
     const raw = fixBackspace(event, values.number);
@@ -114,22 +136,41 @@ export function CheckoutForm({ values, onChange, product, merchantName, processi
 
   return (
     <form className="form" onSubmit={handleSubmit} noValidate>
+      <section className="card">
+      <p className="eyebrow">Pay with card</p>
       <fieldset className="fields" disabled={processing}>
-        <Field id="email" label="Email" error={visible("email")} hint="For your receipt">
-          <input
-            ref={refs.email}
-            id="email"
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            spellCheck={false}
-            value={values.email}
-            onChange={(e) => onChange({ ...values, email: e.target.value })}
-            onBlur={blur("email")}
-            aria-invalid={Boolean(visible("email"))}
-            aria-describedby="email-note"
-          />
-        </Field>
+        {editingEmail ? (
+          <Field id="email" label="Email" error={visible("email")} hint="For your receipt">
+            <input
+              ref={refs.email}
+              id="email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              enterKeyHint="next"
+              spellCheck={false}
+              value={values.email}
+              onChange={(e) => onChange({ ...values, email: e.target.value })}
+              onBlur={blur("email")}
+              aria-invalid={Boolean(visible("email"))}
+              aria-describedby="email-note"
+            />
+          </Field>
+        ) : (
+          <div className="email-row">
+            <span className="email-row-label">Receipt to</span>
+            <span className="email-row-value" title={values.email}>
+              {values.email}
+            </span>
+            <button
+              type="button"
+              className="link-btn"
+              onClick={() => setEditingEmail(true)}
+            >
+              Change
+            </button>
+          </div>
+        )}
 
         <Field id="number" label="Card number" error={visible("number")}>
           <div className="input-wrap">
@@ -138,6 +179,7 @@ export function CheckoutForm({ values, onChange, product, merchantName, processi
               id="number"
               inputMode="numeric"
               autoComplete="cc-number"
+              enterKeyHint="next"
               placeholder="1234 1234 1234 1234"
               value={formatCardNumber(values.number, brand)}
               onChange={onNumber}
@@ -146,7 +188,7 @@ export function CheckoutForm({ values, onChange, product, merchantName, processi
               aria-describedby="number-note"
               className="mono"
             />
-            <span className="input-adornment">
+            <span className="input-adornment" key={brand}>
               <CardBrandIcon brand={brand} />
             </span>
           </div>
@@ -159,9 +201,11 @@ export function CheckoutForm({ values, onChange, product, merchantName, processi
               id="expiry"
               inputMode="numeric"
               autoComplete="cc-exp"
+              enterKeyHint="next"
               placeholder="MM / YY"
               value={formatExpiry(values.expiry)}
               onChange={onExpiry}
+              onKeyDown={backTo("number", "expiry")}
               onBlur={blur("expiry")}
               aria-invalid={Boolean(visible("expiry"))}
               aria-describedby="expiry-note"
@@ -174,9 +218,11 @@ export function CheckoutForm({ values, onChange, product, merchantName, processi
               id="cvc"
               inputMode="numeric"
               autoComplete="cc-csc"
+              enterKeyHint="done"
               placeholder={brand === "amex" ? "1234" : "123"}
               value={values.cvc}
               onChange={onCvc}
+              onKeyDown={backTo("expiry", "cvc")}
               onBlur={blur("cvc")}
               aria-invalid={Boolean(visible("cvc"))}
               aria-describedby="cvc-note"
@@ -202,6 +248,7 @@ export function CheckoutForm({ values, onChange, product, merchantName, processi
           <span>Pay {total}</span>
         )}
       </button>
+      </section>
 
       <p className="secure">
         <LockIcon />

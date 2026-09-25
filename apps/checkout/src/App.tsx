@@ -36,7 +36,6 @@ export function App() {
   const [product, setProduct] = useState<Product | null>(null);
   const [brand, setBrand] = useState<ResolvedBrand | null>(null);
   const [form, setForm] = useState<FormValues>(emptyForm);
-  const [summaryOpen, setSummaryOpen] = useState(true);
   const [announce, setAnnounce] = useState("");
 
   const bridge = useRef<Bridge | null>(null);
@@ -155,21 +154,11 @@ export function App() {
   }
 
   const merchantName = brand?.name ?? (init ? hostLabel(init.hostOrigin) : "");
-  const showTotal = product && (phase.status === "ready" || phase.status === "processing");
-  const total = showTotal ? formatMoney(product.amount, product.currency) : undefined;
   const processing = phase.status === "processing";
 
   return (
     <main className="app">
-      <Header
-        name={merchantName || "Checkout"}
-        logo={brand?.logo}
-        total={total}
-        expanded={summaryOpen}
-        onToggle={() => setSummaryOpen((v) => !v)}
-        onClose={requestClose}
-        closeDisabled={processing}
-      />
+      <Header name={merchantName || "Checkout"} logo={brand?.logo} onClose={requestClose} closeDisabled={processing} />
       <div className="body">
         {phase.status === "booting" || phase.status === "loading" ? (
           <Skeleton label={phase.status === "booting" ? "Connecting to the store" : "Setting up your checkout"} />
@@ -189,6 +178,7 @@ export function App() {
           <Screen key="failed">
             <FailedScreen
               failure={phase.failure}
+              amount={product ? formatMoney(product.amount, product.currency) : ""}
               onRetry={() => void pay(form)}
               onChangeCard={() => {
                 setForm((f) => ({ ...f, number: "", expiry: "", cvc: "" }));
@@ -209,7 +199,7 @@ export function App() {
           </Screen>
         ) : product ? (
           <Screen key="form">
-            <Summary product={product} expanded={summaryOpen} />
+            <Summary product={product} />
             <CheckoutForm
               values={form}
               onChange={setForm}
@@ -217,6 +207,7 @@ export function App() {
               merchantName={merchantName}
               processing={processing}
               initialFocus={phase.status === "ready" ? phase.focus : "email"}
+              emailPrefilled={Boolean(init?.customerEmail)}
               onPay={(values) => void pay(values)}
             />
           </Screen>
