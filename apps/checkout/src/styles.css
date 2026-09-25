@@ -700,25 +700,6 @@ body.layout-drawer .body {
   font-size: 14.5px;
   line-height: 1.45;
 }
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin: 14px 0 0;
-  padding: 6px 12px 6px 10px;
-  border-radius: 999px;
-  background: var(--fill);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--ink-2);
-}
-.chip-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--success);
-  box-shadow: 0 0 0 3px var(--success-soft);
-}
 .rows {
   margin: 14px 0 0;
   padding: 0;
@@ -750,6 +731,12 @@ body.layout-drawer .body {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+}
+.rows .is-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--success);
 }
 .num {
   font-variant-numeric: tabular-nums;

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { ChargeFailure } from "../gateway";
 import type { CardBrand } from "../card";
-import { AlertIcon, CardBrandIcon, WifiOffIcon } from "./icons";
+import { AlertIcon, CardBrandIcon, CheckIcon, WifiOffIcon } from "./icons";
 
 export interface Failure {
   code: ChargeFailure;
@@ -62,10 +62,6 @@ export function FailedScreen({ failure, amount, brand, last4, onRetry, onChangeC
             <p className="state-body">{failure.body}</p>
           </div>
         </div>
-        <p className="chip">
-          <span className="chip-dot" aria-hidden="true" />
-          No money has been taken
-        </p>
         <dl className="rows">
           <div className="row-line">
             <dt>Card</dt>
@@ -77,6 +73,13 @@ export function FailedScreen({ failure, amount, brand, last4, onRetry, onChangeC
           <div className="row-line">
             <dt>Amount</dt>
             <dd className="num">{amount}</dd>
+          </div>
+          <div className="row-line">
+            <dt>Status</dt>
+            <dd className="is-ok">
+              <CheckIcon />
+              Nothing charged
+            </dd>
           </div>
         </dl>
       </section>

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { AlertIcon, LockIcon } from "./icons";
+import { AlertIcon, CheckIcon, LockIcon } from "./icons";
 
 export function Skeleton({ label }: { label: string }) {
   return (
@@ -45,10 +45,15 @@ export function ProblemScreen({ title, body, onClose }: { title: string; body: s
             <p className="state-body">{body}</p>
           </div>
         </div>
-        <p className="chip">
-          <span className="chip-dot" aria-hidden="true" />
-          No money has been taken
-        </p>
+        <dl className="rows">
+          <div className="row-line">
+            <dt>Status</dt>
+            <dd className="is-ok">
+              <CheckIcon />
+              Nothing charged
+            </dd>
+          </div>
+        </dl>
       </section>
       <div className="dock state-actions">
         <button ref={button} type="button" className="pay" onClick={onClose}>
