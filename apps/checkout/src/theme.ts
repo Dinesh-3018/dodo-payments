@@ -1,4 +1,4 @@
-import { HEX_COLOUR } from "@dodo/sdk/sanitize";
+import { HEX_COLOUR } from "@dodo/sdk";
 import type { InitMessage, Radius } from "./protocol";
 
 export interface ResolvedBrand {

@@ -161,9 +161,16 @@ $("#clear").addEventListener("click", () => {
 
 // ---- rendering -----------------------------------------------------------
 
+const CHECKOUT_ORIGIN = (import.meta.env.VITE_CHECKOUT_ORIGIN as string | undefined) ?? "http://localhost:5174";
+
 function renderSnippet() {
   const options = buildOptions("prod_123");
-  const lines: string[] = ["DodoCheckout.open({", `  productId: "prod_123",`];
+  const lines: string[] = [
+    `<script src="${CHECKOUT_ORIGIN}/sdk/dodo-checkout.js"></script>`,
+    "",
+    "DodoCheckout.open({",
+    `  productId: "prod_123",`,
+  ];
   if (options.quantity) lines.push(`  quantity: ${options.quantity},`);
   if (options.layout) lines.push(`  layout: "${options.layout}",`);
   if (options.theme) lines.push(`  theme: ${JSON.stringify(options.theme)},`);

@@ -1,4 +1,4 @@
-import { sanitizeEmail, sanitizeLayout, sanitizeMerchant, sanitizeQuantity, sanitizeTheme, PRODUCT_ID } from "@dodo/sdk/sanitize";
+import { sanitizeEmail, sanitizeLayout, sanitizeMerchant, sanitizeQuantity, sanitizeTheme, PRODUCT_ID } from "@dodo/sdk";
 import { PROTOCOL, type ErrorCode, type InitMessage } from "./protocol";
 
 /** Messages the checkout sends to the host. Session and protocol are added here. */

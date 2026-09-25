@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Minimal embed</title>
+    <link rel="icon" href="/logo.svg" type="image/svg+xml" />
+    <style>
+      body { font-family: system-ui, -apple-system, sans-serif; max-width: 560px; margin: 56px auto; padding: 0 20px; color: #0a0a0a; line-height: 1.5; }
+      h1 { font-size: 22px; margin: 0 0 4px; }
+      p { color: #555; margin: 0 0 20px; }
+      button { font: inherit; font-weight: 500; padding: 12px 22px; border-radius: 999px; border: 0; background: #0a0a0a; color: #fff; cursor: pointer; }
+      pre { margin-top: 24px; background: #f5f5f5; padding: 16px; border-radius: 12px; font-size: 13px; white-space: pre-wrap; }
+      a { color: inherit; }
+    </style>
+    <!-- 1. One script tag, served from the checkout's origin (never from this site). -->
+    <script src="%VITE_CHECKOUT_ORIGIN%/sdk/dodo-checkout.js"></script>
+  </head>
+  <body>
+    <h1>Field Notebook, pack of 3 &middot; $18.00</h1>
+    <p>The smallest integration there is: one script tag, one call, three callbacks. View source to see all of it. <a href="/">Back to the full demo store.</a></p>
+    <button id="buy" type="button">Buy now</button>
+    <pre id="log">Callbacks will appear here.</pre>
+
+    <!-- 2. One call. -->
+    <script>
+      var log = function (line) { document.getElementById("log").textContent += "\n" + line; };
+      document.getElementById("buy").addEventListener("click", function () {
+        DodoCheckout.open({
+          productId: "prod_123",
+          onSuccess: function (e) { log("onSuccess  sessionId=" + e.sessionId); },
+          onClose: function (e) { log("onClose    reason=" + e.reason); },
+          onError: function (e) { log("onError    " + e.code + ": " + e.message); },
+        });
+      });
+    </script>
+  </body>
+</html>

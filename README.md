@@ -7,6 +7,10 @@ The payment network is simulated inside the checkout: nothing is charged and no 
 - **Live demo:** _(add the Vercel URL of `apps/demo` here)_
 - **Hosted checkout:** _(add the Vercel URL of `apps/checkout` here)_
 
+## Embed it
+
+Two tags on any page. Nothing to install, no framework, no build step on the host side.
+
 ```html
 <script src="https://<checkout-origin>/sdk/dodo-checkout.js"></script>
 <script>
@@ -18,6 +22,8 @@ The payment network is simulated inside the checkout: nothing is charged and no 
   });
 </script>
 ```
+
+`apps/demo/minimal.html` is exactly that and nothing else: a plain HTML page with a Buy button and a log. The full demo store (`apps/demo/index.html`) is the same integration with a playground around it. The SDK source is one plain TypeScript file, `packages/sdk/src/index.ts`, with no dependencies; it builds to `dodo-checkout.js`, which the checkout app serves at `/sdk/dodo-checkout.js`.
 
 ## The position
 
@@ -40,7 +46,7 @@ Friction taken out on purpose: a pre-filled email shows as a line with a Change 
 ## What is here
 
 ```
-packages/sdk        the one script a site drops in (plain TypeScript, ~8 KB built)
+packages/sdk        the one script a site drops in (one plain TypeScript file, ~9 KB built)
 apps/checkout       the hosted checkout (React + Vite), served from its own origin
 apps/demo           a fake store, "Kestrel Supply Co.", with a Buy button and a callback log
 ```
@@ -52,7 +58,7 @@ pnpm install
 pnpm dev
 ```
 
-- Demo store: http://localhost:5173
+- Demo store: http://localhost:5173 (minimal embed at http://localhost:5173/minimal.html)
 - Checkout: http://localhost:5174 (also serves the SDK at `/sdk/dodo-checkout.js`)
 
 The two apps run on different ports on purpose. That makes the iframe cross-origin locally, exactly as it is in production, so the isolation is real and not just claimed.

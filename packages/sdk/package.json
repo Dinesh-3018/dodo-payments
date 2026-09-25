@@ -15,8 +15,8 @@
   "types": "src/index.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts"
-    },
-    "./sanitize": "./src/sanitize.ts"
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
   }
 }
