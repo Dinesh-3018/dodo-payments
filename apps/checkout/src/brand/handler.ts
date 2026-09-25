@@ -59,4 +59,7 @@ function remember(key: string, body: BrandResponse) {
 export const brandResponseHeaders = {
   "content-type": "application/json; charset=utf-8",
   "cache-control": "public, s-maxage=3600, stale-while-revalidate=86400",
+  // Public data in, public data out: any page may preview a brand. Loopback
+  // targets are only allowed in dev, and only for the dev server's own pages.
+  "access-control-allow-origin": "*",
 };

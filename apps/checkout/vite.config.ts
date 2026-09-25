@@ -4,7 +4,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { handleBrandRequest, brandResponseHeaders } from "./src/brand/handler";
 
 const PORT = 5174;
-const SELF = [`http://localhost:${PORT}`, `http://127.0.0.1:${PORT}`];
+const SELF = [`http://localhost:${PORT}`, `http://127.0.0.1:${PORT}`, "http://localhost:5173", "http://127.0.0.1:5173"];
 
 /**
  * Content-Security-Policy for the built checkout. The production copy lives in
@@ -32,13 +32,10 @@ export const CSP = [
 function brandApi(): Plugin {
   const middleware = async (req: IncomingMessage, res: ServerResponse) => {
     const origin = req.headers.origin;
-    if (origin && !SELF.includes(origin)) {
-      res.writeHead(403, { "content-type": "application/json" });
-      res.end(JSON.stringify({ ok: false, code: "forbidden", message: "Same-origin only." }));
-      return;
-    }
     const url = new URL(req.url ?? "/", "http://localhost").searchParams.get("url");
-    const { status, body } = await handleBrandRequest(url, { allowLoopback: true });
+    // Loopback targets (the demo on localhost) only for our own pages; public sites for anyone.
+    const trusted = !origin || SELF.includes(origin);
+    const { status, body } = await handleBrandRequest(url, { allowLoopback: trusted });
     res.writeHead(status, brandResponseHeaders);
     res.end(JSON.stringify(body));
   };

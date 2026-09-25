@@ -443,11 +443,13 @@ export function sanitizeEmail(email: unknown): string | undefined {
   return EMAIL.test(value) && value.length <= 254 ? value : undefined;
 }
 
-/** https anywhere; plain http only for localhost so local demos work. */
+/** https anywhere; plain http only for localhost so local demos work. A bare domain is read as https. */
 export function sanitizeHttpUrl(value: unknown): string | undefined {
   if (typeof value !== "string" || value.length > 2048) return undefined;
+  const text = value.trim();
+  if (!text) return undefined;
   try {
-    const url = new URL(value);
+    const url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(text) ? text : `https://${text}`);
     const local = url.hostname === "localhost" || url.hostname === "127.0.0.1";
     if (url.protocol === "https:" || (url.protocol === "http:" && local)) return url.href;
   } catch {

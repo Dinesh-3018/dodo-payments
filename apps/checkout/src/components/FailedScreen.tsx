@@ -54,29 +54,33 @@ export function FailedScreen({ failure, amount, brand, last4, onRetry, onChangeC
   useEffect(() => primary.current?.focus(), []);
   return (
     <div className="state" role="alert">
-      <div className="state-main">
-        <div className="state-icon is-danger">{failure.code === "offline" ? <WifiOffIcon /> : <AlertIcon />}</div>
-        <h2 className="state-title">{failure.title}</h2>
-        <p className="state-body">{failure.body}</p>
+      <section className="card state-card">
+        <div className="state-head">
+          <div className="state-icon is-danger">{failure.code === "offline" ? <WifiOffIcon /> : <AlertIcon />}</div>
+          <div className="state-text">
+            <h2 className="state-title">{failure.title}</h2>
+            <p className="state-body">{failure.body}</p>
+          </div>
+        </div>
         <p className="chip">
           <span className="chip-dot" aria-hidden="true" />
           No money has been taken
         </p>
-        <dl className="receipt receipt-compact">
-          <div className="receipt-line">
+        <dl className="rows">
+          <div className="row-line">
             <dt>Card</dt>
             <dd className="receipt-card">
               <CardBrandIcon brand={brand} />
               <span className="num">•••• {last4}</span>
             </dd>
           </div>
-          <div className="receipt-line">
+          <div className="row-line">
             <dt>Amount</dt>
             <dd className="num">{amount}</dd>
           </div>
         </dl>
-      </div>
-      <div className="state-actions">
+      </section>
+      <div className="dock state-actions">
         <button ref={primary} type="button" className="pay" onClick={onRetry}>
           {failure.primary}
         </button>

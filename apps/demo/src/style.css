@@ -206,6 +206,14 @@ h1 { margin: 0 0 6px; font-size: 26px; font-weight: 600; letter-spacing: -0.02em
 .inline input::placeholder { color: #a3a3a3; }
 .inline input:focus { outline: none; background: var(--card); box-shadow: 0 0 0 1.5px var(--brand), 0 0 0 5px rgba(29, 78, 216, 0.18); }
 .hint { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); }
+.brand-preview { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 22px; margin-top: 10px; font-size: 13px; }
+.brand-preview:empty { display: none; }
+.brand-preview-label { color: var(--muted); }
+.brand-preview-note { color: var(--muted); }
+.brand-preview-name { font-weight: 500; }
+.brand-preview-logo { width: 22px; height: 22px; border-radius: 6px; object-fit: contain; background: var(--card); box-shadow: 0 0 0 1px rgba(0,0,0,0.06); }
+.brand-preview-swatch { width: 18px; height: 18px; border-radius: 50%; background: var(--c); box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08); }
+.brand-preview-swatch.is-small { width: 12px; height: 12px; }
 .check { display: flex; gap: 10px; align-items: center; font-size: 14px; margin: 8px 0; color: var(--ink-2); }
 .check input { width: 16px; height: 16px; accent-color: var(--brand); }
 .snippet {

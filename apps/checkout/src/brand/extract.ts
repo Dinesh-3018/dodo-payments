@@ -249,14 +249,23 @@ function metaContent(head: string, key: "name" | "property", value: string): str
   return undefined;
 }
 
+/**
+ * Stores publish their name in several places and the legal one is usually the
+ * longest ("Cookd Ventures Private Limited"). The shortest sensible candidate
+ * is almost always the brand people know.
+ */
 function pickName(head: string): string | undefined {
   const candidates = [
     metaContent(head, "property", "og:site_name"),
     metaContent(head, "name", "application-name"),
     metaContent(head, "name", "apple-mobile-web-app-title"),
     cleanTitle(titleText(head)),
-  ];
-  return candidates.find((c) => c && c.length >= 2 && c.length <= 40);
+  ]
+    .filter((c): c is string => typeof c === "string")
+    .map((c) => c.replace(/\s+/g, " ").trim())
+    .filter((c) => c.length >= 2 && c.length <= 40 && !/^(home|shop|store|welcome)$/i.test(c));
+  if (candidates.length === 0) return undefined;
+  return candidates.reduce((best, c) => (c.length < best.length ? c : best));
 }
 
 function titleText(head: string): string | undefined {
@@ -293,6 +302,8 @@ function pickLogo(head: string, base: URL): string | undefined {
     ...sorted(withHref.filter((l) => l.rel.includes("apple-touch-icon"))).map((l) => l.href),
     metaContent(head, "property", "og:logo"),
     ...sorted(withHref.filter((l) => /(^|\s)icon(\s|$)/.test(l.rel) && (svg(l.href) || l.sizes >= 96))).map((l) => l.href),
+    headerLogoImage(head),
+    ...sorted(withHref.filter((l) => /(^|\s)(icon|shortcut icon)(\s|$)/.test(l.rel))).map((l) => l.href),
   ];
   for (const href of candidates) {
     if (!href) continue;
@@ -302,6 +313,17 @@ function pickLogo(head: string, base: URL): string | undefined {
     } catch {
       /* skip */
     }
+  }
+  return undefined;
+}
+
+/** The first <img> that calls itself a logo, in class, alt, id or file name. */
+function headerLogoImage(head: string): string | undefined {
+  for (const tag of collectTags(head, "img")) {
+    const src = attr(tag, "src") ?? attr(tag, "data-src");
+    if (!src || src.startsWith("data:")) continue;
+    const hint = `${attr(tag, "class") ?? ""} ${attr(tag, "alt") ?? ""} ${attr(tag, "id") ?? ""} ${src}`;
+    if (/logo/i.test(hint) && !/payment|visa|master|paypal|badge|trust|partner/i.test(hint)) return src;
   }
   return undefined;
 }

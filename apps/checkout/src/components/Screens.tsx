@@ -35,18 +35,22 @@ export function ProblemScreen({ title, body, onClose }: { title: string; body: s
   useEffect(() => button.current?.focus(), []);
   return (
     <div className="state" role="alert">
-      <div className="state-main">
-        <div className="state-icon is-danger">
-          <AlertIcon />
+      <section className="card state-card">
+        <div className="state-head">
+          <div className="state-icon is-danger">
+            <AlertIcon />
+          </div>
+          <div className="state-text">
+            <h2 className="state-title">{title}</h2>
+            <p className="state-body">{body}</p>
+          </div>
         </div>
-        <h2 className="state-title">{title}</h2>
-        <p className="state-body">{body}</p>
         <p className="chip">
           <span className="chip-dot" aria-hidden="true" />
           No money has been taken
         </p>
-      </div>
-      <div className="state-actions">
+      </section>
+      <div className="dock state-actions">
         <button ref={button} type="button" className="pay" onClick={onClose}>
           Close
         </button>
@@ -68,16 +72,20 @@ export function NotFoundScreen({ onClose }: { onClose: () => void }) {
 export function StandaloneScreen() {
   return (
     <div className="state standalone">
-      <div className="state-main">
-        <div className="state-icon is-neutral">
-          <LockIcon />
+      <section className="card state-card">
+        <div className="state-head">
+          <div className="state-icon is-neutral">
+            <LockIcon />
+          </div>
+          <div className="state-text">
+            <h2 className="state-title">This is the Dodo checkout</h2>
+            <p className="state-body">
+              It only works inside a store that opens it with the Dodo Checkout script. Opened on its own it has no
+              product, no session and no one to report back to, so it does nothing.
+            </p>
+          </div>
         </div>
-        <h2 className="state-title">This is the Dodo checkout</h2>
-        <p className="state-body">
-          It only works inside a store that opens it with the Dodo Checkout script. Opened on its own it has no product,
-          no session and no one to report back to, so it does nothing.
-        </p>
-      </div>
+      </section>
     </div>
   );
 }

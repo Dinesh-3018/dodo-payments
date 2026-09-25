@@ -10,7 +10,7 @@ export interface ResolvedBrand {
 }
 
 const DEFAULT_ACCENT = "#111827";
-const BRAND_TIMEOUT_MS = 3000;
+const BRAND_TIMEOUT_MS = 6500;
 
 /**
  * Brand precedence: explicit values from the host, then whatever the store's

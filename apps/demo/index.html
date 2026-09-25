@@ -86,10 +86,11 @@
             <div class="control">
               <label class="control-label" for="site">Brand from another store's URL</label>
               <div class="inline">
-                <input id="site" type="url" placeholder="https://shop.cookdtv.com" spellcheck="false" />
+                <input id="site" type="text" inputmode="url" placeholder="shop.cookdtv.com" spellcheck="false" autocomplete="off" />
                 <button type="button" id="site-clear" class="btn-ghost">Clear</button>
               </div>
-              <p class="hint">Leave empty and the checkout reads the colours, name and logo of the page it's opened on.</p>
+              <div id="brand-preview" class="brand-preview" aria-live="polite"></div>
+              <p class="hint">Leave empty and the checkout reads the page it's opened on. It fetches the store's HTML and looks at <code>theme-color</code>, brand and button colours in its CSS, <code>og:site_name</code> and its icons. Explicit values always win.</p>
             </div>
 
             <div class="control">

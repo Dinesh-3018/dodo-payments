@@ -185,7 +185,7 @@ export function App() {
       <Header name={merchantName || "Checkout"} logo={brand?.logo} onClose={requestClose} closeDisabled={processing} />
       <div className="body">
         {phase.status === "booting" || phase.status === "loading" ? (
-          <Skeleton label={phase.status === "booting" ? "Connecting to the store" : "Setting up your checkout"} />
+          <Skeleton label={phase.status === "booting" ? "Connecting to the store" : "Matching the store's look"} />
         ) : phase.status === "not_found" ? (
           <Screen key="not_found">
             <NotFoundScreen onClose={requestClose} />
@@ -198,8 +198,16 @@ export function App() {
               onClose={requestClose}
             />
           </Screen>
-        ) : phase.status === "failed" ? (
+        ) : phase.status === "failed" && product ? (
           <Screen key="failed">
+            <Summary
+              product={product}
+              quantity={quantity}
+              onQuantityChange={() => undefined}
+              perks={STORE_PERKS}
+              progress={progress}
+              disabled
+            />
             <FailedScreen
               failure={phase.failure}
               amount={totalLabel}

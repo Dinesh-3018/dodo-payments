@@ -105,14 +105,66 @@ document.querySelectorAll<HTMLButtonElement>("[data-accent]").forEach((button) =
 });
 
 const siteInput = $<HTMLInputElement>("#site");
+const CHECKOUT_ORIGIN = (import.meta.env.VITE_CHECKOUT_ORIGIN as string | undefined) ?? "http://localhost:5174";
+let previewTimer = 0;
+let previewSeq = 0;
+
+function normaliseSite(raw: string): string {
+  const text = raw.trim();
+  if (!text) return "";
+  return /^[a-z][a-z0-9+.-]*:\/\//i.test(text) ? text : `https://${text}`;
+}
+
+/** Ask the checkout's brand reader what it sees, so the answer is visible before Buy is pressed. */
+async function previewBrand(site: string) {
+  const box = $("#brand-preview");
+  const seq = ++previewSeq;
+  if (!site) {
+    box.innerHTML = "";
+    return;
+  }
+  box.innerHTML = `<span class="brand-preview-note">Reading ${escapeHtml(site)}…</span>`;
+  try {
+    const response = await fetch(`${CHECKOUT_ORIGIN}/api/brand?url=${encodeURIComponent(site)}`, { signal: AbortSignal.timeout(8000) });
+    const body = (await response.json()) as { ok: true; brand: { accent?: string; name?: string; logo?: string; palette: string[] } } | { ok: false; message: string };
+    if (seq !== previewSeq) return;
+    if (!body.ok) {
+      box.innerHTML = `<span class="brand-preview-note">Couldn't read it: ${escapeHtml(body.message)}</span>`;
+      return;
+    }
+    const { accent, name, logo, palette } = body.brand;
+    box.innerHTML = [
+      `<span class="brand-preview-label">Found</span>`,
+      logo ? `<img class="brand-preview-logo" src="${escapeHtml(logo)}" alt="" referrerpolicy="no-referrer" />` : "",
+      name ? `<span class="brand-preview-name">${escapeHtml(name)}</span>` : `<span class="brand-preview-note">no name</span>`,
+      accent ? `<span class="brand-preview-swatch" style="--c:${escapeHtml(accent)}"></span><code>${escapeHtml(accent)}</code>` : `<span class="brand-preview-note">no accent</span>`,
+      palette.slice(0, 3).map((c) => `<span class="brand-preview-swatch is-small" style="--c:${escapeHtml(c)}" title="${escapeHtml(c)}"></span>`).join(""),
+    ].join("");
+  } catch {
+    if (seq === previewSeq) box.innerHTML = `<span class="brand-preview-note">Couldn't reach that site.</span>`;
+  }
+}
+
 siteInput.addEventListener("input", () => {
-  settings.site = siteInput.value.trim();
+  settings.site = normaliseSite(siteInput.value);
+  // A store URL means "use that store's colours": drop any explicit swatch.
+  if (settings.site && settings.accent) {
+    settings.accent = "";
+    document.querySelectorAll<HTMLButtonElement>("[data-accent]").forEach((b) => {
+      const active = b.dataset.accent === "";
+      b.classList.toggle("is-active", active);
+      b.setAttribute("aria-checked", String(active));
+    });
+  }
   renderSnippet();
+  clearTimeout(previewTimer);
+  previewTimer = window.setTimeout(() => void previewBrand(settings.site), 500);
 });
 $("#site-clear").addEventListener("click", () => {
   siteInput.value = "";
   settings.site = "";
   renderSnippet();
+  void previewBrand("");
 });
 
 for (const key of ["prefill", "identity", "radius"] as const) {
@@ -160,8 +212,6 @@ $("#clear").addEventListener("click", () => {
 });
 
 // ---- rendering -----------------------------------------------------------
-
-const CHECKOUT_ORIGIN = (import.meta.env.VITE_CHECKOUT_ORIGIN as string | undefined) ?? "http://localhost:5174";
 
 function renderSnippet() {
   const options = buildOptions("prod_123");

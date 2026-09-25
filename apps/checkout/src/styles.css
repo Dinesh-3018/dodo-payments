@@ -638,40 +638,38 @@ body.layout-drawer .body {
   text-underline-offset: 2px;
 }
 
-/* ---- state screens ------------------------------------------------------ */
+/* ---- state screens: cards in the same stack as the form ---------------- */
 
-/* Content sits in the middle of whatever height the panel has; actions pin to the bottom. */
 .state {
   flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  text-align: center;
-  padding: 8px 4px 0;
 }
-.state-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 24px 0;
+.state-card {
+  margin-top: 12px;
+  text-align: left;
 }
 .state.standalone {
-  max-width: 420px;
-  margin: 0 auto;
+  max-width: 440px;
+  margin: 24px auto 0;
+  width: 100%;
+}
+.state-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
 }
 .state-icon {
+  flex: none;
   display: grid;
   place-items: center;
-  width: 56px;
-  height: 56px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  margin-bottom: 18px;
 }
 .state-icon svg {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
 }
 .state-icon.is-danger {
   background: var(--danger-soft);
@@ -682,31 +680,33 @@ body.layout-drawer .body {
   color: var(--success);
 }
 .state-icon.is-neutral {
-  background: var(--card);
+  background: var(--fill);
   color: var(--ink-2);
-  box-shadow: var(--shadow-card);
+}
+.state-text {
+  min-width: 0;
+  padding-top: 2px;
 }
 .state-title {
-  margin: 0 0 6px;
-  font-size: 20px;
+  margin: 0 0 4px;
+  font-size: 18px;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.015em;
 }
 .state-body {
   margin: 0;
   color: var(--muted);
-  font-size: 15px;
-  max-width: 32ch;
+  font-size: 14.5px;
+  line-height: 1.45;
 }
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin: 14px 0 18px;
-  padding: 7px 12px 7px 10px;
+  margin: 14px 0 0;
+  padding: 6px 12px 6px 10px;
   border-radius: 999px;
-  background: var(--card);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
+  background: var(--fill);
   font-size: 13px;
   font-weight: 500;
   color: var(--ink-2);
@@ -718,47 +718,26 @@ body.layout-drawer .body {
   background: var(--success);
   box-shadow: 0 0 0 3px var(--success-soft);
 }
-.state-actions {
-  position: sticky;
-  bottom: 0;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 0 4px;
-  background: linear-gradient(to bottom, transparent, var(--canvas) 10px);
+.rows {
+  margin: 14px 0 0;
+  padding: 0;
 }
-.state-actions .pay {
-  margin-top: 0;
-}
-.receipt {
-  width: 100%;
-  margin: 18px 0 0;
-  padding: 6px 20px;
-  background: var(--card);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-  text-align: left;
-}
-.receipt-line {
+.row-line {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 12px 0;
+  padding: 11px 0;
   border-top: 1px solid var(--line);
   font-size: 14px;
 }
-.receipt-line:first-child {
-  border-top: 0;
+.row-line:last-child {
+  padding-bottom: 0;
 }
-.receipt-compact {
-  margin: 0;
-}
-.receipt dt {
+.rows dt {
   color: var(--muted);
 }
-.receipt dd {
+.rows dd {
   margin: 0;
   font-weight: 500;
   min-width: 0;
@@ -773,6 +752,15 @@ body.layout-drawer .body {
 }
 .num {
   font-variant-numeric: tabular-nums;
+}
+.state-actions {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.state-actions .pay {
+  margin-top: 0;
 }
 .check-ring {
   stroke-dasharray: 101;
