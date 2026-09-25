@@ -1,0 +1,10 @@
+{
+  "name": "dodo-checkout",
+  "private": true,
+  "packageManager": "pnpm@10.17.0",
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm --filter @dodo/sdk build && pnpm --filter @dodo/checkout build && pnpm --filter @dodo/demo build",
+    "typecheck": "pnpm -r typecheck"
+  }
+}

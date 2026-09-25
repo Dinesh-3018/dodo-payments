@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f766e" />
+    <meta property="og:site_name" content="Kestrel Supply Co." />
+    <link rel="icon" href="/logo.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/logo.svg" />
+    <title>Kestrel Supply Co.</title>
+    <link rel="stylesheet" href="/src/style.css" />
+    <!-- The one script. It is served from the checkout's origin, never from this site. -->
+    <script src="%VITE_CHECKOUT_ORIGIN%/sdk/dodo-checkout.js"></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="logo" href="#"><img src="/logo.svg" alt="" width="28" height="28" /> Kestrel Supply Co.</a>
+      <nav class="site-nav" aria-label="Store">
+        <a href="#">Notebooks</a><a href="#">Desk</a><a href="#">Journal</a>
+      </nav>
+      <span class="status" id="status" aria-live="polite">Checkout closed</span>
+    </header>
+
+    <main class="layout">
+      <section class="store">
+        <article class="product-card">
+          <div class="product-art" aria-hidden="true">
+            <svg viewBox="0 0 320 320" width="100%">
+              <rect width="320" height="320" rx="24" fill="#e6f4f1" />
+              <g transform="translate(70 60)">
+                <rect x="0" y="16" width="140" height="190" rx="12" fill="#0f766e" opacity="0.25" />
+                <rect x="18" y="8" width="140" height="190" rx="12" fill="#0f766e" opacity="0.55" />
+                <rect x="36" y="0" width="140" height="190" rx="12" fill="#0f766e" />
+                <rect x="36" y="0" width="22" height="190" rx="6" fill="#000" opacity="0.18" />
+                <g fill="#fff" opacity="0.75">
+                  <circle cx="98" cy="60" r="4" /><circle cx="120" cy="60" r="4" /><circle cx="142" cy="60" r="4" />
+                  <circle cx="98" cy="84" r="4" /><circle cx="120" cy="84" r="4" /><circle cx="142" cy="84" r="4" />
+                  <circle cx="98" cy="108" r="4" /><circle cx="120" cy="108" r="4" /><circle cx="142" cy="108" r="4" />
+                </g>
+              </g>
+            </svg>
+          </div>
+          <div class="product-info">
+            <p class="eyebrow">Field notebooks</p>
+            <h1>Field Notebook, pack of 3</h1>
+            <p class="price">$18.00</p>
+            <p class="desc">Dot grid, 48 pages each, a cover that survives a back pocket. Lies flat from the first page.</p>
+            <button id="buy" class="btn-primary" type="button">Buy now</button>
+            <p class="fine">Ships in 2 days. 30-day returns. Test cards: 4242 4242 4242 4242 pays, 4000 0000 0000 0002 declines, 4000 0000 0000 0341 fails once then pays.</p>
+          </div>
+        </article>
+
+        <section class="playground" aria-labelledby="pg-title">
+          <h2 id="pg-title">Integration playground</h2>
+          <p class="pg-lede">Every control below changes the options passed to <code>DodoCheckout.open()</code>. The snippet updates live.</p>
+
+          <div class="controls">
+            <div class="control">
+              <span class="control-label">Layout</span>
+              <div class="segmented" role="radiogroup" aria-label="Layout">
+                <button type="button" data-layout="drawer" class="is-active" role="radio" aria-checked="true">Drawer</button>
+                <button type="button" data-layout="modal" role="radio" aria-checked="false">Modal</button>
+              </div>
+            </div>
+
+            <div class="control">
+              <span class="control-label">Accent</span>
+              <div class="swatches" role="radiogroup" aria-label="Accent colour">
+                <button type="button" data-accent="" class="swatch is-auto is-active" role="radio" aria-checked="true" title="Read from this site automatically">Auto</button>
+                <button type="button" data-accent="#0f766e" class="swatch" style="--c:#0f766e" role="radio" aria-checked="false" aria-label="Teal"></button>
+                <button type="button" data-accent="#c2410c" class="swatch" style="--c:#c2410c" role="radio" aria-checked="false" aria-label="Terracotta"></button>
+                <button type="button" data-accent="#4f46e5" class="swatch" style="--c:#4f46e5" role="radio" aria-checked="false" aria-label="Indigo"></button>
+                <button type="button" data-accent="#c6fe1e" class="swatch" style="--c:#c6fe1e" role="radio" aria-checked="false" aria-label="Lime"></button>
+                <button type="button" data-accent="#111827" class="swatch" style="--c:#111827" role="radio" aria-checked="false" aria-label="Near black"></button>
+              </div>
+            </div>
+
+            <div class="control">
+              <label class="control-label" for="site">Brand from another store's URL</label>
+              <div class="inline">
+                <input id="site" type="url" placeholder="https://shop.cookdtv.com" spellcheck="false" />
+                <button type="button" id="site-clear" class="btn-ghost">Clear</button>
+              </div>
+              <p class="hint">Leave empty and the checkout reads the colours, name and logo of the page it's opened on.</p>
+            </div>
+
+            <div class="control">
+              <span class="control-label">Options</span>
+              <label class="check"><input type="checkbox" id="prefill" /> Pre-fill email (<code>customerEmail</code>)</label>
+              <label class="check"><input type="checkbox" id="identity" /> Pass name and logo explicitly instead of reading them</label>
+              <label class="check"><input type="checkbox" id="radius" /> Large corner radius</label>
+            </div>
+          </div>
+
+          <pre class="snippet" aria-label="Code that runs on Buy"><code id="snippet"></code></pre>
+
+          <h3>Weird states</h3>
+          <div class="edge">
+            <button type="button" data-edge="double" class="btn-ghost">Double-click Buy</button>
+            <button type="button" data-edge="unknown" class="btn-ghost">Unknown product</button>
+            <button type="button" data-edge="hostclose" class="btn-ghost">Host closes after 3s</button>
+            <button type="button" data-edge="badcall" class="btn-ghost">Call open() wrong</button>
+          </div>
+          <p class="hint">To see the offline state, open the checkout, switch DevTools Network to Offline, then press Pay.</p>
+        </section>
+      </section>
+
+      <aside class="log-panel" aria-labelledby="log-title">
+        <div class="log-head">
+          <h2 id="log-title">Callback log</h2>
+          <button type="button" id="clear" class="btn-ghost">Clear</button>
+        </div>
+        <p class="hint">Everything the host page learns, and nothing it doesn't.</p>
+        <ol id="log" class="log" aria-live="polite"></ol>
+      </aside>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
